@@ -1,4 +1,5 @@
 import pandas as pd
+import streamlit as st
 
 
 def calc_timesheets_n_billings(files):
@@ -12,7 +13,7 @@ def calc_timesheets_n_billings(files):
         billings = billings.append(billing,ignore_index = True)
 
     #Remove irrelevant rows
-    # timesheets.dropna(subset = ['Employee ID'], inplace=True)
+    timesheets.dropna(subset = ['Employee ID'], inplace=True)
     #Keep the needed columns
     timesheets_cols = [1,2,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     timesheets = timesheets[timesheets.columns[timesheets_cols]]
@@ -48,7 +49,7 @@ def calc_timesheets_n_billings(files):
     return timesheets, billings, over_threshold
 
 
-import streamlit as st
+
 import io
 
 st.title('Timesheet & Billing')
