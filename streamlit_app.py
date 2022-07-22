@@ -65,9 +65,9 @@ if files is not None:
 
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
     # Write each dataframe to a different worksheet.
-    ts.to_excel(writer, sheet_name='Timesheet')
-    bl.to_excel(writer, sheet_name='Billing')
-    ot.to_excel(writer, sheet_name='Over Threshold')
+        ts.to_excel(writer, sheet_name='Timesheet')
+        bl.to_excel(writer, sheet_name='Billing')
+        ot.to_excel(writer, sheet_name='Over Threshold')
 
     # Close the Pandas Excel writer and output the Excel file to the buffer
     writer.save()
