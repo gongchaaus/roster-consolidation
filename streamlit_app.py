@@ -51,15 +51,11 @@ def calc_timesheets_n_billings(files):
 import streamlit as st
 import io
 
-@st.cache
-def convert_df(df):
-   return df.to_csv().encode('utf-8')
-
 st.title('Timesheet & Billing')
 
-files = st.file_uploader("Choose Files", accept_multiple_files = True)
-if files is not None:
-    ts, bl, ot = calc_timesheets_n_billings(files)
+uploaded_files = st.file_uploader("Choose Files", accept_multiple_files = True)
+if uploaded_files is not None:
+    ts, bl, ot = calc_timesheets_n_billings(uploaded_files)
 
     buffer = io.BytesIO()
 
