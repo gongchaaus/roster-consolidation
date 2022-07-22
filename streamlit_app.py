@@ -57,7 +57,7 @@ def convert_df(df):
 
 st.title('Timesheet & Billing')
 
-files = st.file_uploader("Choose Files",accept_multiple_files = True)
+files = st.file_uploader("Choose Files", accept_multiple_files = True)
 if files is not None:
     ts, bl, ot = calc_timesheets_n_billings(files)
 
