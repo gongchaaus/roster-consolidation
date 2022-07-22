@@ -12,7 +12,7 @@ def calc_timesheets_n_billings(files):
     billings = billings.append(billing,ignore_index = True)
 
   #Remove irrelevant rows
-  timesheets.dropna(subset = ['Employee ID'], inplace=True)
+  # timesheets.dropna(subset = ['Employee ID'], inplace=True)
   #Keep the needed columns
   timesheets_cols = [1,2,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
   timesheets = timesheets[timesheets.columns[timesheets_cols]]
