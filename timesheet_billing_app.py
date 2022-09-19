@@ -13,14 +13,14 @@ def calc_timesheets_n_billings(files):
         billings = billings.append(billing,ignore_index = True)
 
     #Remove irrelevant rows
-    # timesheets.dropna(subset = ['Employee ID'], inplace=True)
+    timesheets.dropna(subset = ['Employee ID'], inplace=True)
     #Keep the needed columns
     timesheets_cols = [1,2,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     timesheets = timesheets[timesheets.columns[timesheets_cols]]
     timesheets['Update Wage'] = timesheets['Update Wage'].astype(bool)
     #Column Aggregations
-    # timesheets_agg_cols = {'Preferred Name':'first','Update Wage':'first','Hour Threshold':'first','Company':'first','Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
-    # timesheets = timesheets.groupby('Employee ID', as_index = False).agg(timesheets_agg_cols)
+    timesheets_agg_cols = {'Preferred Name':'first','Update Wage':'first','Hour Threshold':'first','Company':'first','Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
+    timesheets = timesheets.groupby('Employee ID', as_index = False).agg(timesheets_agg_cols)
     #Calculate Over Threshold
     timesheets['Over Threshold'] = timesheets['Total'] - timesheets['Hour Threshold']
     timesheets.loc[timesheets["Over Threshold"] <=0, "Over Threshold"] = 0
