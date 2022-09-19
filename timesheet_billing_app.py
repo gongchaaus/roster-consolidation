@@ -55,6 +55,7 @@ import io
 st.title('Timesheet & Billing')
 
 uploaded_files = st.file_uploader("Choose Files", accept_multiple_files = True)
+st.write(len(uploaded_files))
 # if uploaded_files is not None:
 if len(uploaded_files) > 0:
     ts, bl, ot = calc_timesheets_n_billings(uploaded_files)
