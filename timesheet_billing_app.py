@@ -18,7 +18,7 @@ def calc_timesheets_n_billings(files):
     # timesheets_cols = [1,2,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     timesheets_cols = [1,2,3,7,8,9,10,14,15,11,12,13,18,17,19,16,20]
     timesheets = timesheets[timesheets.columns[timesheets_cols]]
-    timesheets = timesheets[['Employee ID','First Name','Last Name','Update Wage','Hour Threshold','Company','Ord','Eve 1','Eve 2', 'Sat','Sun',	'Pub','Personal Leave',	'Annual Leave',	'Unpaid Leave',	'No. of Shifts','Total']]
+    timesheets = timesheets[['Employee ID','First Name','Last Name','Update Wage','Company','Ord','Eve 1','Eve 2', 'Sat','Sun',	'Pub','Personal Leave',	'Annual Leave',	'Unpaid Leave',	'No. of Shifts','Total']]
     timesheets['Update Wage'] = timesheets['Update Wage'].astype(bool)
     #Column Aggregations
     timesheets_agg_cols = {'First Name':'first','Last Name':'first','Update Wage':'first','Hour Threshold':'first','Company':'first','Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
