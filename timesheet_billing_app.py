@@ -19,8 +19,8 @@ def calc_timesheets_n_billings(files):
     timesheets = timesheets[timesheets.columns[timesheets_cols]]
     timesheets['Update Wage'] = timesheets['Update Wage'].astype(bool)
     #Column Aggregations
-    timesheets_agg_cols = {'Preferred Name':'first','Update Wage':'first','Hour Threshold':'first','Company':'first','Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
-    timesheets = timesheets.groupby('Employee ID', as_index = False).agg(timesheets_agg_cols)
+    # timesheets_agg_cols = {'Preferred Name':'first','Update Wage':'first','Hour Threshold':'first','Company':'first','Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
+    # timesheets = timesheets.groupby('Employee ID', as_index = False).agg(timesheets_agg_cols)
     #Calculate Over Threshold
     timesheets['Over Threshold'] = timesheets['Total'] - timesheets['Hour Threshold']
     timesheets.loc[timesheets["Over Threshold"] <=0, "Over Threshold"] = 0
