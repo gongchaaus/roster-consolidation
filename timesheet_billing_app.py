@@ -50,7 +50,6 @@ def calc_timesheets_n_billings(files):
     return timesheets, billings, over_threshold
 
 
-
 import io
 
 st.title('Timesheet & Billing')
