@@ -29,9 +29,12 @@ def calc_timesheets_n_billings(files):
     #Reduce Ord & Total with the excess
     timesheets['Ord'] = timesheets['Ord'] - timesheets['Over Threshold']
     timesheets['Total'] = timesheets['Total'] - timesheets['Over Threshold']
-    #Convert 100 hours to 76 hours
+    #Convert 80 & 100 hours to 76 hours
     hours_col = ['Ord', 'Sat','Sun','Eve 1','Eve 2', 'Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Total']
-    timesheets.loc[timesheets["Hour Threshold"] == 100, hours_col] = timesheets[hours_col]/100*76
+    if(100 in timesheets["Hour Threshold"].values):
+      timesheets.loc[timesheets["Hour Threshold"] == 100, hours_col] = timesheets[hours_col]/100*76
+    if(80 in timesheets["Hour Threshold"].values):
+      timesheets.loc[timesheets["Hour Threshold"] == 80, hours_col] = timesheets[hours_col]/80*76
     #drop Hour Threshold & Over Threshold
     timesheets = timesheets.drop(['Hour Threshold','Over Threshold'],axis = 1)
 
@@ -47,7 +50,6 @@ def calc_timesheets_n_billings(files):
     billings = billings.groupby('Store', as_index = False).agg(billings_agg_cols)
 
     return timesheets, billings, over_threshold
-
 
 
 import io
