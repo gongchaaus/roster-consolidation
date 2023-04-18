@@ -8,8 +8,8 @@ def calc_timesheets_n_billings(files):
     billings = pd.DataFrame()
 
     for file in files:
-        time.sleep(1)
         timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
+        time.sleep(1)
         billing = pd.read_excel(file, sheet_name = 'Billing')
         timesheets = timesheets.append(timesheet,ignore_index = True)
         billings = billings.append(billing,ignore_index = True)
