@@ -1,4 +1,5 @@
 import pandas as pd
+import time
 import streamlit as st
 
 
@@ -7,6 +8,7 @@ def calc_timesheets_n_billings(files):
     billings = pd.DataFrame()
 
     for file in files:
+        time.sleep(1)
         timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
         billing = pd.read_excel(file, sheet_name = 'Billing')
         timesheets = timesheets.append(timesheet,ignore_index = True)
@@ -50,7 +52,6 @@ def calc_timesheets_n_billings(files):
     billings = billings.groupby('Store', as_index = False).agg(billings_agg_cols)
 
     return timesheets, billings, over_threshold
-
 
 import io
 
