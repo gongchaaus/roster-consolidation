@@ -8,6 +8,7 @@ def calc_timesheets_n_billings(files):
     billings = pd.DataFrame()
 
     for file in files:
+        output.write(file.name)
         timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
         billing = pd.read_excel(file, sheet_name = 'Billing')
         timesheets = timesheets.append(timesheet,ignore_index = True)
@@ -57,6 +58,10 @@ import io
 st.title('Timesheet & Billing')
 
 uploaded_files = st.file_uploader("Choose Files", accept_multiple_files = True)
+
+# Create an empty container
+output = st.empty()
+
 # if uploaded_files is not None:
 if len(uploaded_files) > 0:
     ts, bl, ot = calc_timesheets_n_billings(uploaded_files)
