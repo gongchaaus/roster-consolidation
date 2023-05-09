@@ -11,9 +11,7 @@ def calc_timesheets_n_billings(files):
         output.write(file.name)
         timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
         billing = pd.read_excel(file, sheet_name = 'Billing')
-        st.write(timesheet.size)
-#        timesheets = timesheets.append(timesheet,ignore_index = True)
-#        billings = billings.append(billing,ignore_index = True)
+#        st.write(timesheet.size)
         timesheets = pd.concat([timesheets,timesheet])
         billings = pd.concat([billings, billing])
 
