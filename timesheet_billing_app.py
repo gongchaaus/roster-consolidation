@@ -12,8 +12,9 @@ def calc_timesheets_n_billings(files):
         timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
         billing = pd.read_excel(file, sheet_name = 'Billing')
         st.write(timesheet.size)
-        timesheets = timesheets.append(timesheet,ignore_index = True)
-        billings = billings.append(billing,ignore_index = True)
+#        timesheets = timesheets.append(timesheet,ignore_index = True)
+#        billings = billings.append(billing,ignore_index = True)
+        timesheets = pd.concat([timesheets,timesheet])
 
     #Remove irrelevant rows
     timesheets.dropna(subset = ['Employee ID'], inplace=True)
