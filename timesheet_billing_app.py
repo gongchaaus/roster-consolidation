@@ -35,7 +35,7 @@ def calc_timesheets_n_billings(files):
     timesheets['Ord'] = timesheets['Ord'] - timesheets['Over Threshold']
     timesheets['Total'] = timesheets['Total'] - timesheets['Over Threshold']
     #Convert 80 & 100 hours to 76 hours
-    hours_col = ['Ord', 'Sat','Sun','Eve 1','Eve 2','Pub','Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Total']
+    hours_col = ['Ord', 'Sat','Sun','Pub','Eve 1','Eve 2','Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Total']
     if(100 in timesheets["Hour Threshold"].values):
       timesheets.loc[timesheets["Hour Threshold"] == 100, hours_col] = timesheets[hours_col]/100*76
     if(80 in timesheets["Hour Threshold"].values):
