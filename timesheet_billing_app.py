@@ -2,18 +2,20 @@ import pandas as pd
 import time
 import streamlit as st
 
-
 def calc_timesheets_n_billings(files):
     timesheets = pd.DataFrame()
     billings = pd.DataFrame()
 
     for file in files:
-        output.write(file.name)
+        time.sleep(1)
         timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
         billing = pd.read_excel(file, sheet_name = 'Billing')
-#        st.write(timesheet.size)
-        timesheets = pd.concat([timesheets,timesheet])
-        billings = pd.concat([billings, billing])
+        # # append will be deprecated # #
+        # timesheets = timesheets.append(timesheet,ignore_index = True)
+        # billings = billings.append(billing,ignore_index = True)
+        timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
+        billings = pd.concat([billings, billing], ignore_index=True)
+
 
     #Remove irrelevant rows
     timesheets.dropna(subset = ['Employee ID'], inplace=True)
@@ -38,6 +40,17 @@ def calc_timesheets_n_billings(files):
       timesheets.loc[timesheets["Hour Threshold"] == 100, hours_col] = timesheets[hours_col]/100*76
     if(80 in timesheets["Hour Threshold"].values):
       timesheets.loc[timesheets["Hour Threshold"] == 80, hours_col] = timesheets[hours_col]/80*76
+    if any(timesheets["Hour Threshold"] > 1000):
+      # Find rows where "Hour Threshold" is greater than 1000
+      rows_to_update = timesheets.loc[timesheets["Hour Threshold"] > 1000]
+      # Perform actions on the rows
+      for index, row in rows_to_update.iterrows():
+        threshold = int(row["Hour Threshold"])
+        base = int(str(threshold)[:2])
+        conversion = int(str(threshold)[-2:])
+        # Update multiple columns using .loc
+        timesheets.loc[index, hours_col] = timesheets.loc[index, hours_col] / conversion * base
+
     #drop Hour Threshold & Over Threshold
     timesheets = timesheets.drop(['Hour Threshold','Over Threshold'],axis = 1)
 
