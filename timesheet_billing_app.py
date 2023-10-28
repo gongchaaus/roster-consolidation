@@ -173,6 +173,7 @@ def calc_timesheets_n_billings(files):
     'Hours'
     ]
   analysis = analysis[analysis_col]
+  analysis['Date'] = pd.to_datetime(analysis['Date'])
 
   bonus = analysis.copy()
 
@@ -198,9 +199,6 @@ def calc_timesheets_n_billings(files):
   # Stich sales based on shop_id & dates
   start = bonus['Date'].min()
   end = bonus['Date'].max()
-  # print(start)
-  # print(end)
-
 
   date_range = pd.date_range(start=start, end=end, freq='D')
   shop_id_list = bonus['shop_id'].unique().tolist()
