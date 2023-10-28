@@ -211,7 +211,7 @@ def calc_timesheets_n_billings(files):
     end_str = tmr.strftime("%Y-%m-%d")
     _, _, _, df = get_batch_sales_df(start_str, end_str, shop_id_list_str)
     df['Date'] = d
-    sales_df = pd.concat([sales_df, df])
+    sales_df = pd.concat([sales_df, df], ignore_index=True)
 
   sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
   sales_df['shop_id'] = sales_df['shop_id'].astype(int)
@@ -250,9 +250,9 @@ if len(uploaded_files) > 0:
 
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
     # Write each dataframe to a different worksheet.
-        ts.to_excel(writer, sheet_name='Timesheet')
-        bl.to_excel(writer, sheet_name='Billing')
-        ot.to_excel(writer, sheet_name='Over Threshold')
+        ts.to_excel(writer, sheet_name='Timesheet', index = False)
+        bl.to_excel(writer, sheet_name='Billing', index = False)
+        ot.to_excel(writer, sheet_name='Over Threshold', index = False)
         an.to_excel(writer, sheet_name='Analysis',index = False)
         bo.to_excel(writer, sheet_name='Bonus',index = False)
 
