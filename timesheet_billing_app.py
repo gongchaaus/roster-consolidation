@@ -9,18 +9,33 @@ from datetime import datetime, timedelta
 import http.client
 import json
 
-def extract_week(file, sheet_name):
-  week = pd.read_excel(file, sheet_name = sheet_name)
-  week = week.iloc[:, :24]
+def extract_additional_hr(file, sheet_name):
+  df = pd.read_excel(file, sheet_name = sheet_name)
+  df = df.fillna({'Add': 0, 'Add.1': 0,'Add.2': 0,'Add.3': 0,'Add.4': 0,'Add.5': 0,'Personal Leave': 0,'Annual Leave': 0,})
+  df['2012-11-01'] = df['Add'] + df['Add.1'] + df['Add.2'] + df['Add.3'] + df['Add.4'] + df['Add.5'] + df['Personal Leave'] + df['Annual Leave']
+  cols =[0,1,2, df.columns.tolist().index('2012-11-01')]
+
+  df = df.iloc[:, cols]
+  df = df.dropna(subset=df.columns[:3], how='all')
+  df = df.melt(id_vars=['Employee ID', 'Store', 'Preferred Name'], value_vars=df.columns[3:], var_name='Date', value_name='Hours')
+  df = df[df['Hours'] != 0]
+  return df
+
+
+def extract_rostered_hr(file, sheet_name):
+  df = pd.read_excel(file, sheet_name = sheet_name)
+  df = df.iloc[:, :24]
   cols = [0,1,2]
   for col in range(3, 24, 3):
-      week[week.columns[col]] = week[week.columns[col+2]]
+      df[df.columns[col]] = df[df.columns[col+2]]
       cols.append(col)
-  week = week.iloc[:,cols]
-  week = week.dropna(subset=week.columns[:3], how='all')
-  week = week.melt(id_vars=['Employee ID', 'Store', 'Preferred Name'], value_vars=week.columns[3:], var_name='Date', value_name='Hours')
-  week = week[week['Hours'] != 0]
-  return week
+  df = df.iloc[:,cols]
+  df = df.dropna(subset=df.columns[:3], how='all')
+  df = df.melt(id_vars=['Employee ID', 'Store', 'Preferred Name'], value_vars=df.columns[3:], var_name='Date', value_name='Hours')
+  df = df[df['Hours'] != 0]
+  return df
+
+
 
 
 def get_access_token():
@@ -90,24 +105,25 @@ def get_batch_sales_df(start, end, shop_id_list):
 def calc_timesheets_n_billings(files):
   timesheets = pd.DataFrame()
   billings = pd.DataFrame()
-  weeks = pd.DataFrame()
+  rostered_hr = pd.DataFrame()
+  additional_hr = pd.DataFrame()
 
   for file in files:
-    time.sleep(1)
+    # time.sleep(1)
     timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
     billing = pd.read_excel(file, sheet_name = 'Billing')
-    week1 = extract_week(file, 'Week 1 Roster')
-    week2 = extract_week(file, 'Week 2 Roster')
-    # # append will be deprecated # #
-    # timesheets = timesheets.append(timesheet,ignore_index = True)
-    # billings = billings.append(billing,ignore_index = True)
+    rostered_hr_w1 = extract_rostered_hr(file, 'Week 1 Roster')
+    rostered_hr_w2 = extract_rostered_hr(file, 'Week 2 Roster')
+    additional_hr_w1 = extract_additional_hr(file, 'Week 1 Roster')
+    additional_hr_w2 = extract_additional_hr(file, 'Week 2 Roster')
+    employees = pd.read_excel(file, sheet_name = 'Employees')
+
     timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
     billings = pd.concat([billings, billing], ignore_index=True)
-    weeks = pd.concat([weeks, week1], ignore_index=True)
-    weeks = pd.concat([weeks, week2], ignore_index=True)
-    employees = pd.read_excel(file, sheet_name = 'Employees')
-    # employees['Employee ID'] = employees['Employee ID'].astype(int)
-    # stores = pd.read_excel(file, sheet_name = 'Stores')
+    rostered_hr = pd.concat([rostered_hr, rostered_hr_w1], ignore_index=True)
+    rostered_hr = pd.concat([rostered_hr, rostered_hr_w2], ignore_index=True)
+    additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
+    additional_hr = pd.concat([additional_hr, additional_hr_w2], ignore_index=True)
 
   #Remove irrelevant rows
   timesheets.dropna(subset = ['Employee ID'], inplace=True)
@@ -157,12 +173,11 @@ def calc_timesheets_n_billings(files):
   billings_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
   billings = billings.groupby('Store', as_index = False).agg(billings_agg_cols)
 
-  analysis = weeks.copy()
-  analysis = analysis.dropna(subset=['Employee ID'])
-  analysis['Employee ID'] = analysis['Employee ID'].str[:6]
-  analysis['Employee ID'] = analysis['Employee ID'].astype(int)
-  analysis = pd.merge(analysis, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
-  analysis_col = [
+  rostered_hr = rostered_hr.dropna(subset=['Employee ID'])
+  rostered_hr['Employee ID'] = rostered_hr['Employee ID'].str[:6]
+  rostered_hr['Employee ID'] = rostered_hr['Employee ID'].astype(int)
+  rostered_hr = pd.merge(rostered_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
+  rostered_hr_col = [
     'Employee ID',
     'First Name',
     'Last Name',
@@ -172,10 +187,11 @@ def calc_timesheets_n_billings(files):
     'Date',
     'Hours'
     ]
-  analysis = analysis[analysis_col]
-  analysis['Date'] = pd.to_datetime(analysis['Date'])
+  rostered_hr = rostered_hr[rostered_hr_col]
+  rostered_hr['Date'] = pd.to_datetime(rostered_hr['Date'])
 
-  bonus = analysis.copy()
+
+  bonus = rostered_hr.copy()
 
   # Stitch Store ID and drop rows which Store ID are not found
   sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
@@ -230,6 +246,26 @@ def calc_timesheets_n_billings(files):
   bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['sales'] >= bonus['Target Sales'], 0)
   bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
 
+  # Work out additional_hr
+  additional_hr = additional_hr.dropna(subset=['Employee ID'])
+  additional_hr['Employee ID'] = additional_hr['Employee ID'].str[:6]
+  additional_hr['Employee ID'] = additional_hr['Employee ID'].astype(int)
+  additional_hr = pd.merge(additional_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
+  additional_hr_col = [
+    'Employee ID',
+    'First Name',
+    'Last Name',
+    'Preferred Name',
+    'Company',
+    'Store',
+    'Date',
+    'Hours'
+  ]
+  additional_hr = additional_hr[additional_hr_col]
+  additional_hr['Date'] = pd.to_datetime(additional_hr['Date'])
+
+  # Concat rostered_hr and additional_hr
+  analysis = pd.concat([rostered_hr, additional_hr])
 
   return timesheets, billings, over_threshold, analysis, bonus
 
