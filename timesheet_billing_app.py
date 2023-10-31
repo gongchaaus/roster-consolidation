@@ -174,7 +174,9 @@ def calc_timesheets_n_billings(files):
     for index, row in rows_to_update.iterrows():
       threshold = int(row["Hour Threshold"])
       base = int(str(threshold)[:2])
+      print('before conversion')
       conversion = int(str(threshold)[-2:])
+      print('after conversion')
       # Update multiple columns using .loc
       timesheets.loc[index, hours_col] = timesheets.loc[index, hours_col] / conversion * base
 
@@ -285,7 +287,7 @@ def calc_timesheets_n_billings(files):
 
   return timesheets, billings, over_threshold, analysis, bonus
 
-  
+
 
 import io
 
