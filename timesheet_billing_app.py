@@ -11,6 +11,15 @@ import json
 
 def extract_additional_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
+  df = df.dropna(subset=['Employee ID'])
+  
+  if df['Employee ID'].dtypes == 'object':
+    df['Employee ID'] = df['Employee ID'].str[:6]
+  df['Employee ID'] = df['Employee ID'].astype(int)
+
+  if df['Store'].dtypes == float:
+    df['Store'] = df['Store'].astype(int).astype(str)
+    
   df = df.fillna({'Add': 0, 'Add.1': 0,'Add.2': 0,'Add.3': 0,'Add.4': 0,'Add.5': 0,'Personal Leave': 0,'Annual Leave': 0,})
   df['2012-11-01'] = df['Add'] + df['Add.1'] + df['Add.2'] + df['Add.3'] + df['Add.4'] + df['Add.5'] + df['Personal Leave'] + df['Annual Leave']
   cols =[0,1,2, df.columns.tolist().index('2012-11-01')]
@@ -24,6 +33,16 @@ def extract_additional_hr(file, sheet_name):
 
 def extract_rostered_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
+
+  df = df.dropna(subset=['Employee ID'])
+
+  if df['Employee ID'].dtypes == 'object':
+    df['Employee ID'] = df['Employee ID'].str[:6]
+  df['Employee ID'] = df['Employee ID'].astype(int)
+
+  if df['Store'].dtypes == float:
+    df['Store'] = df['Store'].astype(int).astype(str)
+
   df = df.iloc[:, :24]
   cols = [0,1,2]
   for col in range(3, 24, 3):
@@ -173,9 +192,6 @@ def calc_timesheets_n_billings(files):
   billings_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
   billings = billings.groupby('Store', as_index = False).agg(billings_agg_cols)
 
-  rostered_hr = rostered_hr.dropna(subset=['Employee ID'])
-  rostered_hr['Employee ID'] = rostered_hr['Employee ID'].str[:6]
-  rostered_hr['Employee ID'] = rostered_hr['Employee ID'].astype(int)
   rostered_hr = pd.merge(rostered_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
   rostered_hr_col = [
     'Employee ID',
@@ -198,9 +214,9 @@ def calc_timesheets_n_billings(files):
   sheet_name = 'StoreReference'
   url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
   store_ref = pd.read_csv(url)
-  if bonus['Store'].dtypes == float:
-    bonus['Store'] = bonus['Store'].astype(int).astype(str)
+
   bonus = pd.merge(bonus, store_ref, on=['Store'], how = 'left')
+
   bonus.dropna(subset=['Store ID'], inplace = True)
 
   # Stitch shop_id
@@ -212,44 +228,44 @@ def calc_timesheets_n_billings(files):
   bonus = pd.merge(bonus, store_df_gs[['Store ID', 'shop_id']], on=['Store ID'], how = 'left')
   bonus['shop_id'] = bonus['shop_id'].astype(int)
 
-  # Stich sales based on shop_id & dates
+
+  # Stich sales based on shop_id & dates, skip if there is no Date
   start = bonus['Date'].min()
   end = bonus['Date'].max()
 
-  date_range = pd.date_range(start=start, end=end, freq='D')
-  shop_id_list = bonus['shop_id'].unique().tolist()
-  shop_id_list_str = [str(x) for x in shop_id_list]
-  sales_df = pd.DataFrame()
+  if not(pd.isnull(start)):
+    date_range = pd.date_range(start=start, end=end, freq='D')
+    shop_id_list = bonus['shop_id'].unique().tolist()
+    shop_id_list_str = [str(x) for x in shop_id_list]
+    sales_df = pd.DataFrame()
 
-  for d in date_range:
-    tmr = d + timedelta(days=1)
-    start_str = d.strftime("%Y-%m-%d")
-    end_str = tmr.strftime("%Y-%m-%d")
-    _, _, _, df = get_batch_sales_df(start_str, end_str, shop_id_list_str)
-    df['Date'] = d
-    sales_df = pd.concat([sales_df, df], ignore_index=True)
+    for d in date_range:
+      tmr = d + timedelta(days=1)
+      start_str = d.strftime("%Y-%m-%d")
+      end_str = tmr.strftime("%Y-%m-%d")
+      _, _, _, df = get_batch_sales_df(start_str, end_str, shop_id_list_str)
+      df['Date'] = d
+      sales_df = pd.concat([sales_df, df], ignore_index=True)
 
-  sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
-  sales_df['shop_id'] = sales_df['shop_id'].astype(int)
+    sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
+    sales_df['shop_id'] = sales_df['shop_id'].astype(int)
 
-  bonus = pd.merge(bonus, sales_df[['shop_id', 'Date', 'sales']], on=['shop_id', 'Date'], how = 'left')
+    bonus = pd.merge(bonus, sales_df[['shop_id', 'Date', 'sales']], on=['shop_id', 'Date'], how = 'left')
 
-  # Stitch Target Sales & Bonus Rates
-  sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
-  sheet_name = 'Targets'
-  url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-  targets = pd.read_csv(url)
-  targets['Date'] = pd.to_datetime(targets['Date'])
+    # Stitch Target Sales & Bonus Rates
+    sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
+    sheet_name = 'Targets'
+    url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
+    targets = pd.read_csv(url)
+    targets['Date'] = pd.to_datetime(targets['Date'])
 
-  # Change Bonus Rates to 0, if Target Sales is not met
-  bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
-  bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['sales'] >= bonus['Target Sales'], 0)
-  bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
+    # Change Bonus Rates to 0, if Target Sales is not met
+    bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
+    bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['sales'] >= bonus['Target Sales'], 0)
+    bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
 
   # Work out additional_hr
   additional_hr = additional_hr.dropna(subset=['Employee ID'])
-  additional_hr['Employee ID'] = additional_hr['Employee ID'].str[:6]
-  additional_hr['Employee ID'] = additional_hr['Employee ID'].astype(int)
   additional_hr = pd.merge(additional_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
   additional_hr_col = [
     'Employee ID',
@@ -268,6 +284,8 @@ def calc_timesheets_n_billings(files):
   analysis = pd.concat([rostered_hr, additional_hr])
 
   return timesheets, billings, over_threshold, analysis, bonus
+
+  
 
 import io
 
