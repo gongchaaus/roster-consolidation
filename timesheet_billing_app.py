@@ -291,6 +291,7 @@ def calc_timesheets_n_billings(files):
   timesheets.fillna({'Bonus':0}, inplace = True)
   timesheets.rename(columns={'Bonus':'Bonus $'}, inplace = True)
 
+
   return timesheets, billings, over_threshold, analysis, bonus
 
 
