@@ -285,6 +285,12 @@ def calc_timesheets_n_billings(files):
   # Concat rostered_hr and additional_hr
   analysis = pd.concat([rostered_hr, additional_hr])
 
+  # Concat Bouns on to Timesheets
+  bonus_summary = bonus.groupby('Employee ID', as_index = False).agg({'Bonus':'sum'})
+  timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID'], how = 'left')
+  timesheets.fillna({'Bonus':0}, inplace = True)
+  timesheets.rename(columns={'Bonus':'Bonus $'}, inplace = True)
+
   return timesheets, billings, over_threshold, analysis, bonus
 
 
