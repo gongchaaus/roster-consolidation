@@ -119,8 +119,8 @@ def get_batch_sales_df(start, end, shop_id_list):
     sales = json_data["data"]["content"]
     sales_df = pd.DataFrame(sales)
     sales_df['Date'] = pd.to_datetime(start)
-    sales_df['shop_id'] = sales_df['shop_id'].astype(int)
     sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
+    sales_df['shop_id'] = sales_df['shop_id'].astype(int)
 
     return status, payload_json, data, sales_df
 
