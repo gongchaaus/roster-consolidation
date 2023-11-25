@@ -9,20 +9,23 @@ from datetime import datetime, timedelta
 import http.client
 import json
 
+# # # START OF FUNCTIONS
+
 def extract_additional_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
   df = df.dropna(subset=['Employee ID'])
-  
+
   if df['Employee ID'].dtypes == 'object':
     df['Employee ID'] = df['Employee ID'].str[:6]
   df['Employee ID'] = df['Employee ID'].astype(int)
 
   if df['Store'].dtypes == float:
     df['Store'] = df['Store'].astype(int).astype(str)
-    
+
   df = df.fillna({'Add': 0, 'Add.1': 0,'Add.2': 0,'Add.3': 0,'Add.4': 0,'Add.5': 0,'Personal Leave': 0,'Annual Leave': 0,})
-  df['2012-11-01'] = df['Add'] + df['Add.1'] + df['Add.2'] + df['Add.3'] + df['Add.4'] + df['Add.5'] + df['Personal Leave'] + df['Annual Leave']
-  cols =[0,1,2, df.columns.tolist().index('2012-11-01')]
+  df['2012-11-01'] = df['Add'] + df['Add.1'] + df['Add.2'] + df['Add.3'] + df['Add.4'] + df['Add.5']
+  df['2013-01-01'] = df['Personal Leave'] + df['Annual Leave']
+  cols =[0,1,2, df.columns.tolist().index('2012-11-01'),df.columns.tolist().index('2013-01-01')]
 
   df = df.iloc[:, cols]
   df = df.dropna(subset=df.columns[:3], how='all')
@@ -53,8 +56,6 @@ def extract_rostered_hr(file, sheet_name):
   df = df.melt(id_vars=['Employee ID', 'Store', 'Preferred Name'], value_vars=df.columns[3:], var_name='Date', value_name='Hours')
   df = df[df['Hours'] != 0]
   return df
-
-
 
 
 def get_access_token():
@@ -117,8 +118,64 @@ def get_batch_sales_df(start, end, shop_id_list):
     status = json_data["status"]
     sales = json_data["data"]["content"]
     sales_df = pd.DataFrame(sales)
+    sales_df['Date'] = pd.to_datetime(start)
+    sales_df['shop_id'] = sales_df['shop_id'].astype(int)
+    sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
 
     return status, payload_json, data, sales_df
+
+def get_store_GBM_bottle_df(start, end, shop_id):
+
+  shop_id_list_str = [str(shop_id)]
+  product_id_list = [266,267,268,269,270]
+  product_id_list_str = [str(x) for x in product_id_list]
+
+  status, access_token = get_access_token()
+  conn = http.client.HTTPSConnection("pos.aupos.com.au")
+
+  payload = ({
+    "inputFields": {
+      "dateDateValue_fld0_op": "greaterThanEqualTo",
+      "dateDateValue_fld0_grp": "g1",
+      "dateDateValue_fld0_value": start,
+      "dateDateValue_fld1_op": "lessThan",
+      "dateDateValue_fld1_grp": "g1",
+      "dateDateValue_fld1_value": end,
+      "storeProductStoreId_fld0_op": "in",
+      "storeProductStoreId_fld0_grp": "g1",
+      "storeProductStoreId_fld0_value": shop_id_list_str,
+      "productParentId_fld0_op": "in",
+      "productParentId_fld0_grp": "g1",
+      "productParentId_fld0_value": product_id_list_str
+    },
+    "orderBy": "",
+    "page": 1,
+    "size": 1000
+  })
+
+  payload_json = json.dumps(payload)
+
+  headers = {
+    'Content-Type': 'application/json',
+    'userTenantId': 'gc',
+    'Authorization': f'Bearer {access_token}',
+    'Cookie': 'JSESSIONID=01810E6B66E7AA879B9342FBDAC6DB8D.jvm1; OFBiz.Visitor=826825'
+  }
+  conn.request("POST", "/api/services/sales-report-by-product", payload_json, headers)
+  res = conn.getresponse()
+  data = res.read()
+
+  json_data = json.loads(data.decode("utf-8"))
+
+  status = json_data["status"]
+  product = json_data["data"]["content"]
+  product_df = pd.DataFrame(product)
+
+  GBM_bottle_value = product_df['quantity'].sum()*2.5 if(not(product_df.empty)) else 0
+  store_GBM_bottle_df = pd.DataFrame({'shop_id': [shop_id], 'Date':pd.to_datetime(start), 'GBM_bottle_value': [GBM_bottle_value]})
+  store_GBM_bottle_df['shop_id'] = store_GBM_bottle_df['shop_id'].astype(int)
+
+  return status, payload_json, data, store_GBM_bottle_df
 
 
 def calc_timesheets_n_billings(files):
@@ -208,7 +265,6 @@ def calc_timesheets_n_billings(files):
   rostered_hr = rostered_hr[rostered_hr_col]
   rostered_hr['Date'] = pd.to_datetime(rostered_hr['Date'])
 
-
   bonus = rostered_hr.copy()
 
   # Stitch Store ID and drop rows which Store ID are not found
@@ -240,17 +296,25 @@ def calc_timesheets_n_billings(files):
     shop_id_list = bonus['shop_id'].unique().tolist()
     shop_id_list_str = [str(x) for x in shop_id_list]
     sales_df = pd.DataFrame()
+    store_GBM_bottle_df = pd.DataFrame()
 
     for d in date_range:
       tmr = d + timedelta(days=1)
       start_str = d.strftime("%Y-%m-%d")
       end_str = tmr.strftime("%Y-%m-%d")
       _, _, _, df = get_batch_sales_df(start_str, end_str, shop_id_list_str)
-      df['Date'] = d
       sales_df = pd.concat([sales_df, df], ignore_index=True)
+      
+      #add a bool to determine whether to incl/excl LTOs
+      # if(True):
+      for s in shop_id_list:
+        _, _, _, GBM_bottle_df = get_store_GBM_bottle_df(start_str, end_str, s)
+        store_GBM_bottle_df = pd.concat([store_GBM_bottle_df, GBM_bottle_df], ignore_index=True)
 
-    sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
-    sales_df['shop_id'] = sales_df['shop_id'].astype(int)
+    #add a bool to determine whether to incl/excl LTOs
+    # if(True):
+    sales_df = pd.merge(sales_df, store_GBM_bottle_df, on=['shop_id','Date'], how = 'left')
+    sales_df['sales'] = sales_df['sales'] - sales_df['GBM_bottle_value']
 
     bonus = pd.merge(bonus, sales_df[['shop_id', 'Date', 'sales']], on=['shop_id', 'Date'], how = 'left')
 
@@ -291,10 +355,9 @@ def calc_timesheets_n_billings(files):
   timesheets.fillna({'Bonus':0}, inplace = True)
   timesheets.rename(columns={'Bonus':'Bonus $'}, inplace = True)
 
-
   return timesheets, billings, over_threshold, analysis, bonus
 
-
+# # # END OF FUNCTIONS
 
 import io
 
