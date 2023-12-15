@@ -22,7 +22,7 @@ def extract_additional_hr(file, sheet_name):
   if df['Store'].dtypes == float:
     df['Store'] = df['Store'].astype(int).astype(str)
 
-  df = df.fillna({'Add': 0.0, 'Add.1': 0.0,'Add.2': 0.0,'Add.3': 0.0,'Add.4': 0.0,'Add.5': 0.0,'Personal Leave': 0.0,'Annual Leave': 0.0,})
+  df = df.fillna({'Add': 0, 'Add.1': 0,'Add.2': 0,'Add.3': 0,'Add.4': 0,'Add.5': 0,'Personal Leave': 0,'Annual Leave': 0,})
   df['2012-11-01'] = df['Add'] + df['Add.1'] + df['Add.2'] + df['Add.3'] + df['Add.4'] + df['Add.5']
   df['2013-01-01'] = df['Personal Leave'] + df['Annual Leave']
   cols =[0,1,2, df.columns.tolist().index('2012-11-01'),df.columns.tolist().index('2013-01-01')]
