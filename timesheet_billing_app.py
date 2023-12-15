@@ -22,7 +22,7 @@ def extract_additional_hr(file, sheet_name):
   if df['Store'].dtypes == float:
     df['Store'] = df['Store'].astype(int).astype(str)
 
-  df = df.fillna({'Add': 0, 'Add.1': 0,'Add.2': 0,'Add.3': 0,'Add.4': 0,'Add.5': 0,'Personal Leave': 0,'Annual Leave': 0,})
+  df = df.fillna({'Add': 0.0, 'Add.1': 0.0,'Add.2': 0.0,'Add.3': 0.0,'Add.4': 0.0,'Add.5': 0.0,'Personal Leave': 0.0,'Annual Leave': 0.0,})
   df['2012-11-01'] = df['Add'] + df['Add.1'] + df['Add.2'] + df['Add.3'] + df['Add.4'] + df['Add.5']
   df['2013-01-01'] = df['Personal Leave'] + df['Annual Leave']
   cols =[0,1,2, df.columns.tolist().index('2012-11-01'),df.columns.tolist().index('2013-01-01')]
@@ -124,10 +124,10 @@ def get_batch_sales_df(start, end, shop_id_list):
 
     return status, payload_json, data, sales_df
 
-def get_store_GBM_bottle_df(start, end, shop_id):
+def get_store_LTOs_df(start, end, shop_id):
 
   shop_id_list_str = [str(shop_id)]
-  product_id_list = [266,267,268,269,270]
+  product_id_list = [266,267,268,269,270,254, 255, 256, 272]
   product_id_list_str = [str(x) for x in product_id_list]
 
   status, access_token = get_access_token()
@@ -304,11 +304,11 @@ def calc_timesheets_n_billings(files):
       end_str = tmr.strftime("%Y-%m-%d")
       _, _, _, df = get_batch_sales_df(start_str, end_str, shop_id_list_str)
       sales_df = pd.concat([sales_df, df], ignore_index=True)
-      
+
       #add a bool to determine whether to incl/excl LTOs
       # if(True):
       for s in shop_id_list:
-        _, _, _, GBM_bottle_df = get_store_GBM_bottle_df(start_str, end_str, s)
+        _, _, _, GBM_bottle_df = get_store_LTOs_df(start_str, end_str, s)
         store_GBM_bottle_df = pd.concat([store_GBM_bottle_df, GBM_bottle_df], ignore_index=True)
 
     #add a bool to determine whether to incl/excl LTOs
