@@ -65,8 +65,7 @@ def get_access_token():
     "password": "ofbiz"
     })
     headers = {
-    'userTenantId': 'gc',
-    'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+    'UsertenantId': 'gc',
     'Content-Type': 'application/json'
     }
     conn.request("POST", "/api/auth/token", payload, headers)
