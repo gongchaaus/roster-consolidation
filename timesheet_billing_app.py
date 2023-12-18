@@ -109,6 +109,7 @@ def get_batch_sales_df(start, end, shop_id_list):
     'Content-Type': 'application/json',
     'userTenantId': 'gc',
     'Authorization': f'Bearer {access_token}',
+    'Cookie': 'JSESSIONID=9D3E3060ACFB4E28EC71E4E3A9CF6B91.jvm1'
     }
     conn.request("POST", "/api/services/sales-summary", payload_json, headers)
     res = conn.getresponse()
@@ -159,6 +160,7 @@ def get_store_LTOs_df(start, end, shop_id):
     'Content-Type': 'application/json',
     'userTenantId': 'gc',
     'Authorization': f'Bearer {access_token}',
+    'Cookie': 'JSESSIONID=9D3E3060ACFB4E28EC71E4E3A9CF6B91.jvm1'
   }
   conn.request("POST", "/api/services/sales-report-by-product", payload_json, headers)
   res = conn.getresponse()
