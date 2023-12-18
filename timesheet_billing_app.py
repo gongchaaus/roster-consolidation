@@ -62,12 +62,13 @@ def get_access_token():
     print('get_access_token')
     conn = http.client.HTTPSConnection("api.aupos.com.au")
     payload = json.dumps({
-    "username": "gc-admin",
-    "password": "ofbiz"
+      "username": "gc-admin",
+      "password": "ofbiz"
     })
     headers = {
-    'UsertenantId': 'gc',
-    'Content-Type': 'application/json'
+      'userTenantId': 'gc',
+      'Content-Type': 'application/json',
+      'Cookie': 'JSESSIONID=9D3E3060ACFB4E28EC71E4E3A9CF6B91.jvm1'
     }
     conn.request("POST", "/api/auth/token", payload, headers)
     res = conn.getresponse()
