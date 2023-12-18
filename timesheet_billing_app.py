@@ -302,6 +302,9 @@ def calc_timesheets_n_billings(files):
       start_str = d.strftime("%Y-%m-%d")
       end_str = tmr.strftime("%Y-%m-%d")
       _, _, _, df = get_batch_sales_df(start_str, end_str, shop_id_list_str)
+      # print(df)
+      print(df['sales'].iloc[0])
+      print(df['Date'].iloc[0])
       sales_df = pd.concat([sales_df, df], ignore_index=True)
 
       #add a bool to determine whether to incl/excl LTOs
@@ -314,7 +317,7 @@ def calc_timesheets_n_billings(files):
     # if(True):
     sales_df = pd.merge(sales_df, store_GBM_bottle_df, on=['shop_id','Date'], how = 'left')
     sales_df['sales'] = sales_df['sales'] - sales_df['GBM_bottle_value']
-
+    print(sales_df)
     bonus = pd.merge(bonus, sales_df[['shop_id', 'Date', 'sales']], on=['shop_id', 'Date'], how = 'left')
 
     # Stitch Target Sales & Bonus Rates
