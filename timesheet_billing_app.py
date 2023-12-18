@@ -59,6 +59,7 @@ def extract_rostered_hr(file, sheet_name):
 
 
 def get_access_token():
+    print('get_access_token')
     conn = http.client.HTTPSConnection("api.aupos.com.au")
     payload = json.dumps({
     "username": "gc-admin",
@@ -107,7 +108,6 @@ def get_batch_sales_df(start, end, shop_id_list):
     'Content-Type': 'application/json',
     'userTenantId': 'gc',
     'Authorization': f'Bearer {access_token}',
-    'Cookie': 'JSESSIONID=0A7608CA4C2FB965C0EFE3CEB7E149F8.jvm1; OFBiz.Visitor=826825'
     }
     conn.request("POST", "/api/services/sales-summary", payload_json, headers)
     res = conn.getresponse()
