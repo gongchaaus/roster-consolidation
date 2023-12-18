@@ -59,7 +59,7 @@ def extract_rostered_hr(file, sheet_name):
 
 
 def get_access_token():
-    conn = http.client.HTTPSConnection("pos.aupos.com.au")
+    conn = http.client.HTTPSConnection("api.pos.aupos.com.au")
     payload = json.dumps({
     "username": "gc-admin",
     "password": "ofbiz"
@@ -84,7 +84,7 @@ def get_batch_sales_df(start, end, shop_id_list):
 
     status, access_token = get_access_token()
 
-    conn = http.client.HTTPSConnection("pos.aupos.com.au")
+    conn = http.client.HTTPSConnection("ai.pos.aupos.com.au")
     payload = {
     "inputFields": {
         "dateDateValue_fld0_op": "greaterThanEqualTo",
