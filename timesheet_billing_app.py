@@ -158,7 +158,6 @@ def get_store_LTOs_df(start, end, shop_id):
     'Content-Type': 'application/json',
     'userTenantId': 'gc',
     'Authorization': f'Bearer {access_token}',
-    'Cookie': 'JSESSIONID=01810E6B66E7AA879B9342FBDAC6DB8D.jvm1; OFBiz.Visitor=826825'
   }
   conn.request("POST", "/api/services/sales-report-by-product", payload_json, headers)
   res = conn.getresponse()
