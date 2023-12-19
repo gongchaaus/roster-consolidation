@@ -1,13 +1,22 @@
 import pandas as pd
+import xlsxwriter
 import time
-import streamlit as st
 
 #Date & Time
 from datetime import datetime, timedelta
 
 #for making API calls
-import http.client
-import json
+# import http.client
+# import json
+
+import pymysql
+from sqlalchemy import create_engine, text as sql_text
+
+
+#SQlAlchemy
+pymysql.install_as_MySQLdb()
+
+Gong_cha_MySQL_engine = create_engine('mysql://gong-cha:HelloGongCha2012@34.116.84.145:3306/gong_cha_db')
 
 # # # START OF FUNCTIONS
 
@@ -58,125 +67,124 @@ def extract_rostered_hr(file, sheet_name):
   return df
 
 
-def get_access_token():
-    print('get_access_token')
-    conn = http.client.HTTPSConnection("api.aupos.com.au")
-    payload = json.dumps({
-      "username": "gc-admin",
-      "password": "ofbiz"
-    })
-    headers = {
-      'userTenantId': 'gc',
-      'Content-Type': 'application/json',
-      'Cookie': 'JSESSIONID=9D3E3060ACFB4E28EC71E4E3A9CF6B91.jvm1'
-    }
-    conn.request("POST", "/api/auth/token", payload, headers)
-    res = conn.getresponse()
-    data = res.read()
+# def get_access_token():
+#     conn = http.client.HTTPSConnection("api.aupos.com.au")
+#     payload = json.dumps({
+#     "username": "gc-admin",
+#     "password": "ofbiz"
+#     })
+#     headers = {
+#     'userTenantId': 'gc',
+#     'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+#     'Content-Type': 'application/json'
+#     }
+#     conn.request("POST", "/api/auth/token", payload, headers)
+#     res = conn.getresponse()
+#     data = res.read()
 
-    json_data = json.loads(data.decode("utf-8"))
+#     json_data = json.loads(data.decode("utf-8"))
 
-    status = json_data["status"]
-    access_token = json_data["data"]["access_token"]
-    return status, access_token
+#     status = json_data["status"]
+#     access_token = json_data["data"]["access_token"]
+#     return status, access_token
 
 
-def get_batch_sales_df(start, end, shop_id_list):
+# def get_batch_sales_df(start, end, shop_id_list):
 
-    status, access_token = get_access_token()
+#     status, access_token = get_access_token()
 
-    conn = http.client.HTTPSConnection("api.aupos.com.au")
-    payload = {
-    "inputFields": {
-        "dateDateValue_fld0_op": "greaterThanEqualTo",
-        "dateDateValue_fld0_grp": "g1",
-        "dateDateValue_fld0_value": start,
-        "dateDateValue_fld1_op": "lessThan",
-        "dateDateValue_fld1_grp": "g1",
-        "dateDateValue_fld1_value": end,
-        "storeProductStoreId_fld0_op": "in",
-        "storeProductStoreId_fld0_grp": "g1",
-        "storeProductStoreId_fld0_value": shop_id_list
-    },
-    "orderBy": "",
-    "page": 1,
-    "size": 1000
-    }
+#     conn = http.client.HTTPSConnection("api.aupos.com.au")
+#     payload = {
+#     "inputFields": {
+#         "dateDateValue_fld0_op": "greaterThanEqualTo",
+#         "dateDateValue_fld0_grp": "g1",
+#         "dateDateValue_fld0_value": start,
+#         "dateDateValue_fld1_op": "lessThan",
+#         "dateDateValue_fld1_grp": "g1",
+#         "dateDateValue_fld1_value": end,
+#         "storeProductStoreId_fld0_op": "in",
+#         "storeProductStoreId_fld0_grp": "g1",
+#         "storeProductStoreId_fld0_value": shop_id_list
+#     },
+#     "orderBy": "",
+#     "page": 1,
+#     "size": 1000
+#     }
 
-    payload_json = json.dumps(payload)
+#     payload_json = json.dumps(payload)
 
-    headers = {
-    'Content-Type': 'application/json',
-    'userTenantId': 'gc',
-    'Authorization': f'Bearer {access_token}',
-    'Cookie': 'JSESSIONID=9D3E3060ACFB4E28EC71E4E3A9CF6B91.jvm1'
-    }
-    conn.request("POST", "/api/services/sales-summary", payload_json, headers)
-    res = conn.getresponse()
-    data = res.read()
+#     headers = {
+#     'Content-Type': 'application/json',
+#     'userTenantId': 'gc',
+#     'Authorization': f'Bearer {access_token}',
+#     'Cookie': 'JSESSIONID=0A7608CA4C2FB965C0EFE3CEB7E149F8.jvm1; OFBiz.Visitor=826825'
+#     }
+#     conn.request("POST", "/api/services/sales-summary", payload_json, headers)
+#     res = conn.getresponse()
+#     data = res.read()
 
-    json_data = json.loads(data.decode("utf-8"))
-    status = json_data["status"]
-    sales = json_data["data"]["content"]
-    sales_df = pd.DataFrame(sales)
-    sales_df['Date'] = pd.to_datetime(start)
-    sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
-    sales_df['shop_id'] = sales_df['shop_id'].astype(int)
+#     json_data = json.loads(data.decode("utf-8"))
+#     status = json_data["status"]
+#     sales = json_data["data"]["content"]
+#     sales_df = pd.DataFrame(sales)
+#     sales_df['Date'] = pd.to_datetime(start)
+#     sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
+#     sales_df['shop_id'] = sales_df['shop_id'].astype(int)
 
-    return status, payload_json, data, sales_df
+#     return status, payload_json, data, sales_df
 
-def get_store_LTOs_df(start, end, shop_id):
+# def get_store_LTOs_df(start, end, shop_id):
 
-  shop_id_list_str = [str(shop_id)]
-  product_id_list = [266,267,268,269,270,254, 255, 256, 272]
-  product_id_list_str = [str(x) for x in product_id_list]
+#   shop_id_list_str = [str(shop_id)]
+#   product_id_list = [266,267,268,269,270,254, 255, 256, 272]
+#   product_id_list_str = [str(x) for x in product_id_list]
 
-  status, access_token = get_access_token()
-  conn = http.client.HTTPSConnection("api.aupos.com.au")
+#   status, access_token = get_access_token()
+#   conn = http.client.HTTPSConnection("api.aupos.com.au")
 
-  payload = ({
-    "inputFields": {
-      "dateDateValue_fld0_op": "greaterThanEqualTo",
-      "dateDateValue_fld0_grp": "g1",
-      "dateDateValue_fld0_value": start,
-      "dateDateValue_fld1_op": "lessThan",
-      "dateDateValue_fld1_grp": "g1",
-      "dateDateValue_fld1_value": end,
-      "storeProductStoreId_fld0_op": "in",
-      "storeProductStoreId_fld0_grp": "g1",
-      "storeProductStoreId_fld0_value": shop_id_list_str,
-      "productParentId_fld0_op": "in",
-      "productParentId_fld0_grp": "g1",
-      "productParentId_fld0_value": product_id_list_str
-    },
-    "orderBy": "",
-    "page": 1,
-    "size": 1000
-  })
+#   payload = ({
+#     "inputFields": {
+#       "dateDateValue_fld0_op": "greaterThanEqualTo",
+#       "dateDateValue_fld0_grp": "g1",
+#       "dateDateValue_fld0_value": start,
+#       "dateDateValue_fld1_op": "lessThan",
+#       "dateDateValue_fld1_grp": "g1",
+#       "dateDateValue_fld1_value": end,
+#       "storeProductStoreId_fld0_op": "in",
+#       "storeProductStoreId_fld0_grp": "g1",
+#       "storeProductStoreId_fld0_value": shop_id_list_str,
+#       "productParentId_fld0_op": "in",
+#       "productParentId_fld0_grp": "g1",
+#       "productParentId_fld0_value": product_id_list_str
+#     },
+#     "orderBy": "",
+#     "page": 1,
+#     "size": 1000
+#   })
 
-  payload_json = json.dumps(payload)
+#   payload_json = json.dumps(payload)
 
-  headers = {
-    'Content-Type': 'application/json',
-    'userTenantId': 'gc',
-    'Authorization': f'Bearer {access_token}',
-    'Cookie': 'JSESSIONID=9D3E3060ACFB4E28EC71E4E3A9CF6B91.jvm1'
-  }
-  conn.request("POST", "/api/services/sales-report-by-product", payload_json, headers)
-  res = conn.getresponse()
-  data = res.read()
+#   headers = {
+#     'Content-Type': 'application/json',
+#     'userTenantId': 'gc',
+#     'Authorization': f'Bearer {access_token}',
+#     'Cookie': 'JSESSIONID=01810E6B66E7AA879B9342FBDAC6DB8D.jvm1; OFBiz.Visitor=826825'
+#   }
+#   conn.request("POST", "/api/services/sales-report-by-product", payload_json, headers)
+#   res = conn.getresponse()
+#   data = res.read()
 
-  json_data = json.loads(data.decode("utf-8"))
+#   json_data = json.loads(data.decode("utf-8"))
 
-  status = json_data["status"]
-  product = json_data["data"]["content"]
-  product_df = pd.DataFrame(product)
+#   status = json_data["status"]
+#   product = json_data["data"]["content"]
+#   product_df = pd.DataFrame(product)
 
-  GBM_bottle_value = product_df['quantity'].sum()*2.5 if(not(product_df.empty)) else 0
-  store_GBM_bottle_df = pd.DataFrame({'shop_id': [shop_id], 'Date':pd.to_datetime(start), 'GBM_bottle_value': [GBM_bottle_value]})
-  store_GBM_bottle_df['shop_id'] = store_GBM_bottle_df['shop_id'].astype(int)
+#   GBM_bottle_value = product_df['quantity'].sum()*2.5 if(not(product_df.empty)) else 0
+#   store_GBM_bottle_df = pd.DataFrame({'shop_id': [shop_id], 'Date':pd.to_datetime(start), 'GBM_bottle_value': [GBM_bottle_value]})
+#   store_GBM_bottle_df['shop_id'] = store_GBM_bottle_df['shop_id'].astype(int)
 
-  return status, payload_json, data, store_GBM_bottle_df
+#   return status, payload_json, data, store_GBM_bottle_df
 
 
 def calc_timesheets_n_billings(files):
@@ -292,47 +300,41 @@ def calc_timesheets_n_billings(files):
   start = bonus['Date'].min()
   end = bonus['Date'].max()
 
-  if not(pd.isnull(start)):
-    date_range = pd.date_range(start=start, end=end, freq='D')
-    shop_id_list = bonus['shop_id'].unique().tolist()
-    shop_id_list_str = [str(x) for x in shop_id_list]
-    sales_df = pd.DataFrame()
-    store_GBM_bottle_df = pd.DataFrame()
+  start_str = start.strftime('%Y-%m-%d')
+  end_str = (end+timedelta(days=1)).strftime('%Y-%m-%d')
+  shop_id_list = bonus['shop_id'].unique().tolist()
+  shop_id_list_str = ', '.join(str(id) for id in shop_id_list)
+  stock_exclusions_list = [266,267,268,269,270,272,256,255,254]
+  stock_exclusions_list_str = ', '.join(str(s) for s in stock_exclusions_list)
 
-    for d in date_range:
-      tmr = d + timedelta(days=1)
-      start_str = d.strftime("%Y-%m-%d")
-      end_str = tmr.strftime("%Y-%m-%d")
-      _, _, _, df = get_batch_sales_df(start_str, end_str, shop_id_list_str)
-      # print(df)
-      print(df['sales'].iloc[0])
-      print(df['Date'].iloc[0])
-      sales_df = pd.concat([sales_df, df], ignore_index=True)
+  query = '''
+  SELECT
+    d.shop_id, Date(d.docket_date) AS Date, SUM(dl.quantity * dl.sell_inc) as Sales
+  FROM
+    DocketLine dl
+  JOIN
+    Docket d on dl.docket_id  = d.docket_id 
+  WHERE 
+    d.docket_date >='{start}' and d.docket_date < '{end}' and d.shop_id in ({shop_id_list}) and d.`transaction`  = 'SA' and dl.stock_id not in ({stock_exclusions_list})
+  GROUP BY 
+    d.shop_id, Date(d.docket_date)
+  '''.format(start=start_str, end = end_str, shop_id_list = shop_id_list_str, stock_exclusions_list = stock_exclusions_list_str)
+  sales_df = pd.read_sql(con=Gong_cha_MySQL_engine.connect(), sql=sql_text(query))
+  sales_df['Date'] = pd.to_datetime(sales_df['Date'])
 
-      #add a bool to determine whether to incl/excl LTOs
-      # if(True):
-      for s in shop_id_list:
-        _, _, _, GBM_bottle_df = get_store_LTOs_df(start_str, end_str, s)
-        store_GBM_bottle_df = pd.concat([store_GBM_bottle_df, GBM_bottle_df], ignore_index=True)
+  bonus = pd.merge(bonus, sales_df[['shop_id', 'Date', 'Sales']], on=['shop_id', 'Date'], how = 'left')
 
-    #add a bool to determine whether to incl/excl LTOs
-    # if(True):
-    sales_df = pd.merge(sales_df, store_GBM_bottle_df, on=['shop_id','Date'], how = 'left')
-    sales_df['sales'] = sales_df['sales'] - sales_df['GBM_bottle_value']
-    print(sales_df)
-    bonus = pd.merge(bonus, sales_df[['shop_id', 'Date', 'sales']], on=['shop_id', 'Date'], how = 'left')
+  # Stitch Target Sales & Bonus Rates
+  sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
+  sheet_name = 'Targets'
+  url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
+  targets = pd.read_csv(url)
+  targets['Date'] = pd.to_datetime(targets['Date'])
 
-    # Stitch Target Sales & Bonus Rates
-    sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
-    sheet_name = 'Targets'
-    url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-    targets = pd.read_csv(url)
-    targets['Date'] = pd.to_datetime(targets['Date'])
-
-    # Change Bonus Rates to 0, if Target Sales is not met
-    bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
-    bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['sales'] >= bonus['Target Sales'], 0)
-    bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
+  # Change Bonus Rates to 0, if Target Sales is not met
+  bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
+  bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['Sales'] >= bonus['Target Sales'], 0)
+  bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
 
   # Work out additional_hr
   additional_hr = additional_hr.dropna(subset=['Employee ID'])
@@ -362,6 +364,7 @@ def calc_timesheets_n_billings(files):
   return timesheets, billings, over_threshold, analysis, bonus
 
 # # # END OF FUNCTIONS
+
 
 import io
 
