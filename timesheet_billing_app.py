@@ -1,5 +1,4 @@
 import pandas as pd
-import streamlit as st
 import xlsxwriter
 import time
 
@@ -367,6 +366,7 @@ def calc_timesheets_n_billings(files):
 
 
 import io
+import streamlit as st
 
 st.title('Timesheet & Billing')
 
