@@ -370,6 +370,7 @@ import io
 import streamlit as st
 
 st.title('Timesheet and Billing')
+st.warning('This is a warning', icon="⚠️")
 
 uploaded_files = st.file_uploader("Choose Files", accept_multiple_files = True)
 
