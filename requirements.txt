@@ -1,5 +1,6 @@
 pandas
 streamlit
 xlsxwriter
+openpyxl
 PyMySQL
 sqlalchemy
