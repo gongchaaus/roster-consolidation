@@ -187,6 +187,7 @@ def extract_rostered_hr(file, sheet_name):
 
 
 def calc_timesheets_n_billings(files):
+  print('calc')
   timesheets = pd.DataFrame()
   billings = pd.DataFrame()
   rostered_hr = pd.DataFrame()
@@ -368,7 +369,7 @@ def calc_timesheets_n_billings(files):
 import io
 import streamlit as st
 
-st.title('Timesheet And Billing')
+st.title('Timesheet & Billing')
 
 uploaded_files = st.file_uploader("Choose Files", accept_multiple_files = True)
 
