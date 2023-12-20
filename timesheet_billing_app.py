@@ -369,7 +369,7 @@ def calc_timesheets_n_billings(files):
 import io
 import streamlit as st
 
-st.title('Timesheet & Billing')
+st.title('Timesheet and Billing')
 
 uploaded_files = st.file_uploader("Choose Files", accept_multiple_files = True)
 
