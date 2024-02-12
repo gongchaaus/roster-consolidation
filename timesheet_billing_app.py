@@ -1,22 +1,17 @@
 import pandas as pd
-import xlsxwriter
-import time
 
-#Date & Time
-from datetime import datetime, timedelta
+from sqlalchemy import create_engine
+import mysql.connector
 
-#for making API calls
-# import http.client
-# import json
+mysql_host = '34.116.84.145'
+mysql_port = '3306'
+mysql_user = 'gong-cha'
+mysql_password = 'HelloGongCha2012'
+mysql_database = 'gong_cha_redcat_db'
 
-import pymysql
-from sqlalchemy import create_engine, text as sql_text
-
-
-#SQlAlchemy
-pymysql.install_as_MySQLdb()
-
-Gong_cha_MySQL_engine = create_engine('mysql://gong-cha:HelloGongCha2012@34.116.84.145:3306/gong_cha_db')
+# Engine for MySQL
+mysql_connection_string = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
+mysql_engine = create_engine(mysql_connection_string)
 
 # # # START OF FUNCTIONS
 
@@ -42,7 +37,6 @@ def extract_additional_hr(file, sheet_name):
   df = df[df['Hours'] != 0]
   return df
 
-
 def extract_rostered_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
 
@@ -66,126 +60,6 @@ def extract_rostered_hr(file, sheet_name):
   df = df[df['Hours'] != 0]
   return df
 
-
-# def get_access_token():
-#     conn = http.client.HTTPSConnection("api.aupos.com.au")
-#     payload = json.dumps({
-#     "username": "gc-admin",
-#     "password": "ofbiz"
-#     })
-#     headers = {
-#     'userTenantId': 'gc',
-#     'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
-#     'Content-Type': 'application/json'
-#     }
-#     conn.request("POST", "/api/auth/token", payload, headers)
-#     res = conn.getresponse()
-#     data = res.read()
-
-#     json_data = json.loads(data.decode("utf-8"))
-
-#     status = json_data["status"]
-#     access_token = json_data["data"]["access_token"]
-#     return status, access_token
-
-
-# def get_batch_sales_df(start, end, shop_id_list):
-
-#     status, access_token = get_access_token()
-
-#     conn = http.client.HTTPSConnection("api.aupos.com.au")
-#     payload = {
-#     "inputFields": {
-#         "dateDateValue_fld0_op": "greaterThanEqualTo",
-#         "dateDateValue_fld0_grp": "g1",
-#         "dateDateValue_fld0_value": start,
-#         "dateDateValue_fld1_op": "lessThan",
-#         "dateDateValue_fld1_grp": "g1",
-#         "dateDateValue_fld1_value": end,
-#         "storeProductStoreId_fld0_op": "in",
-#         "storeProductStoreId_fld0_grp": "g1",
-#         "storeProductStoreId_fld0_value": shop_id_list
-#     },
-#     "orderBy": "",
-#     "page": 1,
-#     "size": 1000
-#     }
-
-#     payload_json = json.dumps(payload)
-
-#     headers = {
-#     'Content-Type': 'application/json',
-#     'userTenantId': 'gc',
-#     'Authorization': f'Bearer {access_token}',
-#     'Cookie': 'JSESSIONID=0A7608CA4C2FB965C0EFE3CEB7E149F8.jvm1; OFBiz.Visitor=826825'
-#     }
-#     conn.request("POST", "/api/services/sales-summary", payload_json, headers)
-#     res = conn.getresponse()
-#     data = res.read()
-
-#     json_data = json.loads(data.decode("utf-8"))
-#     status = json_data["status"]
-#     sales = json_data["data"]["content"]
-#     sales_df = pd.DataFrame(sales)
-#     sales_df['Date'] = pd.to_datetime(start)
-#     sales_df.rename(columns={'storeProductStoreId': 'shop_id', 'grandTotal':'sales'}, inplace=True)
-#     sales_df['shop_id'] = sales_df['shop_id'].astype(int)
-
-#     return status, payload_json, data, sales_df
-
-# def get_store_LTOs_df(start, end, shop_id):
-
-#   shop_id_list_str = [str(shop_id)]
-#   product_id_list = [266,267,268,269,270,254, 255, 256, 272]
-#   product_id_list_str = [str(x) for x in product_id_list]
-
-#   status, access_token = get_access_token()
-#   conn = http.client.HTTPSConnection("api.aupos.com.au")
-
-#   payload = ({
-#     "inputFields": {
-#       "dateDateValue_fld0_op": "greaterThanEqualTo",
-#       "dateDateValue_fld0_grp": "g1",
-#       "dateDateValue_fld0_value": start,
-#       "dateDateValue_fld1_op": "lessThan",
-#       "dateDateValue_fld1_grp": "g1",
-#       "dateDateValue_fld1_value": end,
-#       "storeProductStoreId_fld0_op": "in",
-#       "storeProductStoreId_fld0_grp": "g1",
-#       "storeProductStoreId_fld0_value": shop_id_list_str,
-#       "productParentId_fld0_op": "in",
-#       "productParentId_fld0_grp": "g1",
-#       "productParentId_fld0_value": product_id_list_str
-#     },
-#     "orderBy": "",
-#     "page": 1,
-#     "size": 1000
-#   })
-#   payload_json = json.dumps(payload)
-
-#   headers = {
-#     'Content-Type': 'application/json',
-#     'userTenantId': 'gc',
-#     'Authorization': f'Bearer {access_token}',
-#     'Cookie': 'JSESSIONID=01810E6B66E7AA879B9342FBDAC6DB8D.jvm1; OFBiz.Visitor=826825'
-#   }
-#   conn.request("POST", "/api/services/sales-report-by-product", payload_json, headers)
-#   res = conn.getresponse()
-#   data = res.read()
-
-#   json_data = json.loads(data.decode("utf-8"))
-
-#   status = json_data["status"]
-#   product = json_data["data"]["content"]
-#   product_df = pd.DataFrame(product)
-
-#   GBM_bottle_value = product_df['quantity'].sum()*2.5 if(not(product_df.empty)) else 0
-#   store_GBM_bottle_df = pd.DataFrame({'shop_id': [shop_id], 'Date':pd.to_datetime(start), 'GBM_bottle_value': [GBM_bottle_value]})
-#   store_GBM_bottle_df['shop_id'] = store_GBM_bottle_df['shop_id'].astype(int)
-
-#   return status, payload_json, data, store_GBM_bottle_df
-
-
 def calc_timesheets_n_billings(files):
   print('calc')
   timesheets = pd.DataFrame()
@@ -194,7 +68,6 @@ def calc_timesheets_n_billings(files):
   additional_hr = pd.DataFrame()
 
   for file in files:
-    # time.sleep(1)
     timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
     billing = pd.read_excel(file, sheet_name = 'Billing')
     rostered_hr_w1 = extract_rostered_hr(file, 'Week 1 Roster')
@@ -210,7 +83,14 @@ def calc_timesheets_n_billings(files):
     additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
     additional_hr = pd.concat([additional_hr, additional_hr_w2], ignore_index=True)
 
-  #Remove irrelevant rows
+    timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
+    billings = pd.concat([billings, billing], ignore_index=True)
+    rostered_hr = pd.concat([rostered_hr, rostered_hr_w1], ignore_index=True)
+    rostered_hr = pd.concat([rostered_hr, rostered_hr_w2], ignore_index=True)
+    additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
+    additional_hr = pd.concat([additional_hr, additional_hr_w2], ignore_index=True)
+
+  #Remov  e irrelevant rows
   timesheets.dropna(subset = ['Employee ID'], inplace=True)
   #Keep the needed columns
   timesheets_cols = [1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
@@ -230,21 +110,19 @@ def calc_timesheets_n_billings(files):
   #Convert 80 & 100 hours to 76 hours
   hours_col = ['Ord', 'Sat','Sun','Eve 1','Eve 2','Pub','Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Total']
   if(100 in timesheets["Hour Threshold"].values):
-    timesheets.loc[timesheets["Hour Threshold"] == 100, hours_col] = timesheets[hours_col]/100*76
+      timesheets.loc[timesheets["Hour Threshold"] == 100, hours_col] = timesheets[hours_col]/100*76
   if(80 in timesheets["Hour Threshold"].values):
-    timesheets.loc[timesheets["Hour Threshold"] == 80, hours_col] = timesheets[hours_col]/80*76
+      timesheets.loc[timesheets["Hour Threshold"] == 80, hours_col] = timesheets[hours_col]/80*76
   if any(timesheets["Hour Threshold"] > 1000):
-    # Find rows where "Hour Threshold" is greater than 1000
-    rows_to_update = timesheets.loc[timesheets["Hour Threshold"] > 1000]
-    # Perform actions on the rows
-    for index, row in rows_to_update.iterrows():
-      threshold = int(row["Hour Threshold"])
-      base = int(str(threshold)[:2])
-      print('before conversion')
-      conversion = int(str(threshold)[-2:])
-      print('after conversion')
-      # Update multiple columns using .loc
-      timesheets.loc[index, hours_col] = timesheets.loc[index, hours_col] / conversion * base
+  # Find rows where "Hour Threshold" is greater than 1000
+      rows_to_update = timesheets.loc[timesheets["Hour Threshold"] > 1000]
+      # Perform actions on the rows
+      for index, row in rows_to_update.iterrows():
+          threshold = int(row["Hour Threshold"])
+          base = int(str(threshold)[:2])
+          conversion = int(str(threshold)[-2:])
+          # Update multiple columns using .loc
+          timesheets.loc[index, hours_col] = timesheets.loc[index, hours_col] / conversion * base
 
   #drop Hour Threshold & Over Threshold
   timesheets = timesheets.drop(['Hour Threshold','Over Threshold'],axis = 1)
@@ -262,15 +140,15 @@ def calc_timesheets_n_billings(files):
 
   rostered_hr = pd.merge(rostered_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
   rostered_hr_col = [
-    'Employee ID',
-    'First Name',
-    'Last Name',
-    'Preferred Name',
-    'Company',
-    'Store',
-    'Date',
-    'Hours'
-    ]
+  'Employee ID',
+  'First Name',
+  'Last Name',
+  'Preferred Name',
+  'Company',
+  'Store',
+  'Date',
+  'Hours'
+  ]
   rostered_hr = rostered_hr[rostered_hr_col]
   rostered_hr['Date'] = pd.to_datetime(rostered_hr['Date'])
 
@@ -286,43 +164,43 @@ def calc_timesheets_n_billings(files):
 
   bonus.dropna(subset=['Store ID'], inplace = True)
 
-  # Stitch shop_id
+  # Stitch recid_plo
   sheet_id = '1ezyBlKquUhYnFwmIKTR4fghI59ZvGaKL35mKbcdeRy4'
   sheet_name = 'Stores'
   url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
   store_df_gs = pd.read_csv(url)
 
-  bonus = pd.merge(bonus, store_df_gs[['Store ID', 'shop_id']], on=['Store ID'], how = 'left')
-  bonus['shop_id'] = bonus['shop_id'].astype(int)
+  bonus = pd.merge(bonus, store_df_gs[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
+  bonus['recid_plo'] = bonus['recid_plo'].astype(int)
 
-
-  # Stich sales based on shop_id & dates, skip if there is no Date
+  # Stich sales based on recid_plo & dates, skip if there is no Date
   start = bonus['Date'].min()
   end = bonus['Date'].max()
 
   start_str = start.strftime('%Y-%m-%d')
-  end_str = (end+timedelta(days=1)).strftime('%Y-%m-%d')
-  shop_id_list = bonus['shop_id'].unique().tolist()
-  shop_id_list_str = ', '.join(str(id) for id in shop_id_list)
-  stock_exclusions_list = [266,267,268,269,270,272,256,255,254]
+  end_str = end.strftime('%Y-%m-%d')
+
+  recid_plo_list = bonus['recid_plo'].unique().tolist()
+  recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
+
+  tumbler_recid_plu_list = [1059,1060,1061,1062]
+  gingerbread_recid_plu_list = [485,559,572,573,574,575,1036,1085,1086]
+  stock_exclusions_list = tumbler_recid_plu_list + gingerbread_recid_plu_list
   stock_exclusions_list_str = ', '.join(str(s) for s in stock_exclusions_list)
 
   query = '''
-  SELECT
-    d.shop_id, Date(d.docket_date) AS Date, SUM(dl.quantity * dl.sell_inc) as Sales
-  FROM
-    DocketLine dl
-  JOIN
-    Docket d on dl.docket_id  = d.docket_id 
-  WHERE 
-    d.docket_date >='{start}' and d.docket_date < '{end}' and d.shop_id in ({shop_id_list}) and d.`transaction`  = 'SA' and dl.stock_id not in ({stock_exclusions_list})
-  GROUP BY 
-    d.shop_id, Date(d.docket_date)
-  '''.format(start=start_str, end = end_str, shop_id_list = shop_id_list_str, stock_exclusions_list = stock_exclusions_list_str)
-  sales_df = pd.read_sql(con=Gong_cha_MySQL_engine.connect(), sql=sql_text(query))
+  SELECT ts2.recid_plo, ts.itemdate as Date, sum(ts.qty*ts.price) as Sales
+  FROM tbl_salesitems ts 
+  JOIN tbl_salesheaders ts2 on ts.recid_mixh = ts2.recid
+  WHERE ts.itemdate >= '{start}' and ts.itemdate <= '{end}' and ts2.recid_plo in ({recid_plo_list}) and ts.recid_plu not in ({stock_exclusions_list})
+  GROUP BY ts2.recid_plo, ts.itemdate
+  ORDER BY ts.itemdate ASC, recid_plo ASC
+  '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, stock_exclusions_list = stock_exclusions_list_str)
+
+  sales_df = pd.read_sql(query, mysql_engine)
   sales_df['Date'] = pd.to_datetime(sales_df['Date'])
 
-  bonus = pd.merge(bonus, sales_df[['shop_id', 'Date', 'Sales']], on=['shop_id', 'Date'], how = 'left')
+  bonus = pd.merge(bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
 
   # Stitch Target Sales & Bonus Rates
   sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
@@ -340,14 +218,14 @@ def calc_timesheets_n_billings(files):
   additional_hr = additional_hr.dropna(subset=['Employee ID'])
   additional_hr = pd.merge(additional_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
   additional_hr_col = [
-    'Employee ID',
-    'First Name',
-    'Last Name',
-    'Preferred Name',
-    'Company',
-    'Store',
-    'Date',
-    'Hours'
+  'Employee ID',
+  'First Name',
+  'Last Name',
+  'Preferred Name',
+  'Company',
+  'Store',
+  'Date',
+  'Hours'
   ]
   additional_hr = additional_hr[additional_hr_col]
   additional_hr['Date'] = pd.to_datetime(additional_hr['Date'])
@@ -363,11 +241,13 @@ def calc_timesheets_n_billings(files):
 
   return timesheets, billings, over_threshold, analysis, bonus
 
+
 # # # END OF FUNCTIONS
 
 
 import io
 import streamlit as st
+import xlsxwriter
 
 st.title('Timesheet & Billing')
 

@@ -2,5 +2,5 @@ pandas
 streamlit
 xlsxwriter
 openpyxl
-PyMySQL
 sqlalchemy
+mysql-connector-python
