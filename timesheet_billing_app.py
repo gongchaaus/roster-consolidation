@@ -1,18 +1,3 @@
-import pandas as pd
-
-from sqlalchemy import create_engine
-import mysql.connector
-
-mysql_host = '34.116.84.145'
-mysql_port = '3306'
-mysql_user = 'gong-cha'
-mysql_password = 'HelloGongCha2012'
-mysql_database = 'gong_cha_redcat_db'
-
-# Engine for MySQL
-mysql_connection_string = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
-mysql_engine = create_engine(mysql_connection_string)
-
 # # # START OF FUNCTIONS
 
 def extract_additional_hr(file, sheet_name):
@@ -75,13 +60,6 @@ def calc_timesheets_n_billings(files):
     additional_hr_w1 = extract_additional_hr(file, 'Week 1 Roster')
     additional_hr_w2 = extract_additional_hr(file, 'Week 2 Roster')
     employees = pd.read_excel(file, sheet_name = 'Employees')
-
-    timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
-    billings = pd.concat([billings, billing], ignore_index=True)
-    rostered_hr = pd.concat([rostered_hr, rostered_hr_w1], ignore_index=True)
-    rostered_hr = pd.concat([rostered_hr, rostered_hr_w2], ignore_index=True)
-    additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
-    additional_hr = pd.concat([additional_hr, additional_hr_w2], ignore_index=True)
 
     timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
     billings = pd.concat([billings, billing], ignore_index=True)
@@ -247,7 +225,6 @@ def calc_timesheets_n_billings(files):
 
 import io
 import streamlit as st
-import xlsxwriter
 
 st.title('Timesheet & Billing')
 
