@@ -1,18 +1,3 @@
-import pandas as pd
-
-from sqlalchemy import create_engine
-import mysql.connector
-
-mysql_host = '34.116.84.145'
-mysql_port = '3306'
-mysql_user = 'gong-cha'
-mysql_password = 'HelloGongCha2012'
-mysql_database = 'gong_cha_redcat_db'
-
-# Engine for MySQL
-mysql_connection_string = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
-mysql_engine = create_engine(mysql_connection_string)
-
 # # # START OF FUNCTIONS
 
 def extract_additional_hr(file, sheet_name):
@@ -176,19 +161,23 @@ def calc_timesheets_n_billings(files):
   recid_plo_list = bonus['recid_plo'].unique().tolist()
   recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
 
-  tumbler_recid_plu_list = [1059,1060,1061,1062]
-  gingerbread_recid_plu_list = [485,559,572,573,574,575,1036,1085,1086]
-  stock_exclusions_list = tumbler_recid_plu_list + gingerbread_recid_plu_list
-  stock_exclusions_list_str = ', '.join(str(s) for s in stock_exclusions_list)
+  sheet_id = '1peA8effpeSTk3duIjxF46V-PrDD8tv3fubTCDEpD940'
+  sheet_name = 'ops_bonus_exclusion'
+  url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
+  exclusion_df = pd.read_csv(url)
+  excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
+
+  excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
+  excluded_recid_plu_str
 
   query = '''
   SELECT ts2.recid_plo, ts.itemdate as Date, sum(ts.qty*ts.price) as Sales
   FROM tbl_salesitems ts 
   JOIN tbl_salesheaders ts2 on ts.recid_mixh = ts2.recid
-  WHERE ts.itemdate >= '{start}' and ts.itemdate <= '{end}' and ts2.recid_plo in ({recid_plo_list}) and ts.recid_plu not in ({stock_exclusions_list})
+  WHERE ts.itemdate >= '{start}' and ts.itemdate <= '{end}' and ts2.recid_plo in ({recid_plo_list}) and ts.recid_plu not in ({excluded_recid_plu})
   GROUP BY ts2.recid_plo, ts.itemdate
   ORDER BY ts.itemdate ASC, recid_plo ASC
-  '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, stock_exclusions_list = stock_exclusions_list_str)
+  '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
 
   sales_df = pd.read_sql(query, mysql_engine)
   sales_df['Date'] = pd.to_datetime(sales_df['Date'])
