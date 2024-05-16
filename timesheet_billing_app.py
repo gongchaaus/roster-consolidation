@@ -1,3 +1,19 @@
+import pandas as pd
+
+from sqlalchemy import create_engine
+import mysql.connector
+
+mysql_host = '34.116.84.145'
+mysql_port = '3306'
+mysql_user = 'gong-cha'
+mysql_password = 'HelloGongCha2012'
+mysql_database = 'gong_cha_redcat_db'
+
+# Engine for MySQL
+mysql_connection_string = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
+mysql_engine = create_engine(mysql_connection_string)
+
+
 # # # START OF FUNCTIONS
 
 def extract_additional_hr(file, sheet_name):
