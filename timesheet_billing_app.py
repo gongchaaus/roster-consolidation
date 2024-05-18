@@ -184,7 +184,6 @@ def calc_timesheets_n_billings(files):
   excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
 
   excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
-  excluded_recid_plu_str
 
   query = '''
   SELECT ts2.recid_plo, ts.itemdate as Date, sum(ts.qty*ts.price) as Sales
