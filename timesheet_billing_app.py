@@ -159,12 +159,12 @@ def calc_timesheets_n_billings(files):
   bonus.dropna(subset=['Store ID'], inplace = True)
 
   # Stitch recid_plo
-  sheet_id = '1ezyBlKquUhYnFwmIKTR4fghI59ZvGaKL35mKbcdeRy4'
-  sheet_name = 'Stores'
+  sheet_id = '1aVcnah9Cp_PUvFiXgd2XRmBpLhumCqHUaqROaLcpYfc'
+  sheet_name = 'store_id_ref'
   url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-  store_df_gs = pd.read_csv(url)
-
-  bonus = pd.merge(bonus, store_df_gs[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
+  store_id_ref_crm = pd.read_csv(url)
+  store_id_ref_crm = store_id_ref_crm.rename(columns={'store_id' : 'Store ID'})
+  bonus = pd.merge(bonus, store_id_ref_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
   bonus['recid_plo'] = bonus['recid_plo'].astype(int)
 
   # Stich sales based on recid_plo & dates, skip if there is no Date
