@@ -244,8 +244,7 @@ def calc_timesheets_n_billings(files):
   )
   upsheets['date']=bonus['Date'].min()
 
-  return timesheets, billings, over_threshold, analysis, bonus, upsheets
-
+  return timesheets, billings, over_threshold, analysis, bonus, timesheets
 
 # # # END OF FUNCTIONS
 
@@ -262,7 +261,7 @@ output = st.empty()
 
 # if uploaded_files is not None:
 if len(uploaded_files) > 0:
-    ts, bl, ot, an, bo, up = calc_timesheets_n_billings(uploaded_files)
+    ts, bl, ot, an, bo, ts2 = calc_timesheets_n_billings(uploaded_files)
 
     buffer = io.BytesIO()
 
@@ -273,7 +272,7 @@ if len(uploaded_files) > 0:
         ot.to_excel(writer, sheet_name='Over Threshold', index = False)
         an.to_excel(writer, sheet_name='Analysis',index = False)
         bo.to_excel(writer, sheet_name='Bonus',index = False)
-        up.to_excel(writer, sheet_name='Upsheets',index = False)
+        ts2.to_excel(writer, sheet_name='Upsheets',index = False)
 
     # Close the Pandas Excel writer and output the Excel file to the buffer
     writer.close()
