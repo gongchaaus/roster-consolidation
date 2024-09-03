@@ -234,9 +234,17 @@ def calc_timesheets_n_billings(files):
   bonus_summary = bonus.groupby('Employee ID', as_index = False).agg({'Bonus':'sum'})
   timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID'], how = 'left')
   timesheets.fillna({'Bonus':0}, inplace = True)
-  timesheets.rename(columns={'Bonus':'Bonus $'}, inplace = True)
 
-  return timesheets, billings, over_threshold, analysis, bonus
+  upsheets = pd.melt(
+    timesheets, 
+    id_vars=['Employee ID', 'First Name', 'Last Name', 'Company'],  # Columns to keep
+    value_vars=['Ord', 'Sat', 'Sun', 'Pub', 'Eve 1', 'Eve 2', 'No. of Shifts', 'Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Bonus'],  # Columns to unpivot
+    var_name='type',
+    value_name='hours'
+  )
+  upsheets['date']=bonus['Date'].min()
+
+  return timesheets, billings, over_threshold, analysis, bonus, upsheets
 
 
 # # # END OF FUNCTIONS
@@ -254,7 +262,7 @@ output = st.empty()
 
 # if uploaded_files is not None:
 if len(uploaded_files) > 0:
-    ts, bl, ot, an, bo = calc_timesheets_n_billings(uploaded_files)
+    ts, bl, ot, an, bo, up = calc_timesheets_n_billings(uploaded_files)
 
     buffer = io.BytesIO()
 
@@ -265,6 +273,7 @@ if len(uploaded_files) > 0:
         ot.to_excel(writer, sheet_name='Over Threshold', index = False)
         an.to_excel(writer, sheet_name='Analysis',index = False)
         bo.to_excel(writer, sheet_name='Bonus',index = False)
+        up.to_excel(writer, sheet_name='Upsheets',index = False)
 
     # Close the Pandas Excel writer and output the Excel file to the buffer
     writer.close()
