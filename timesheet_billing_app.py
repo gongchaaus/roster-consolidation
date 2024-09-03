@@ -242,6 +242,22 @@ def calc_timesheets_n_billings(files):
     var_name='type',
     value_name='hours'
   )
+
+  type_replacement = {
+    'Ord': 'Ordinary Hours',
+    'Sat': 'Saturday',
+    'Sun': 'Sunday',
+    'Pub': 'Public Holiday Hours',
+    'Eve 1': 'Late Evening Hours 10pm to Midnight',
+    'Eve 2': 'Late Evening Hours Midnight - 6AM',
+    'No. of Shifts': 'Laundry Allowance',
+    'Personal Leave': "Personal/Carer's Leave",
+    'Annual Leave': 'Annual Leave',
+    'Unpaid Leave': 'Other Unpaid Leave',
+    'Bonus': 'Bonus',
+  }
+  upsheets['type'] = upsheets['type'].replace(type_replacement)
+  
   upsheets = upsheets[upsheets['hours'] != 0]
   upsheets['date']=bonus['Date'].min()
   upsheets = upsheets.rename(columns={'First Name': 'first_name', 'Last Name':'last_name'})
