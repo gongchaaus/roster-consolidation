@@ -144,7 +144,7 @@ def calc_timesheets_n_billings(files):
   'Hours'
   ]
   rostered_hr = rostered_hr[rostered_hr_col]
-  rostered_hr['Date'] = pd.to_datetime(rostered_hr['Date'])
+  rostered_hr['Date'] = pd.to_datetime(rostered_hr['Date']).dt.date
 
   bonus = rostered_hr.copy()
 
@@ -195,7 +195,7 @@ def calc_timesheets_n_billings(files):
   '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
 
   sales_df = pd.read_sql(query, mysql_engine)
-  sales_df['Date'] = pd.to_datetime(sales_df['Date'])
+  sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
 
   bonus = pd.merge(bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
 
@@ -204,7 +204,7 @@ def calc_timesheets_n_billings(files):
   sheet_name = 'Targets'
   url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
   targets = pd.read_csv(url)
-  targets['Date'] = pd.to_datetime(targets['Date'])
+  targets['Date'] = pd.to_datetime(targets['Date']).dt.date
 
   # Change Bonus Rates to 0, if Target Sales is not met
   bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
@@ -243,9 +243,7 @@ def calc_timesheets_n_billings(files):
     value_name='hours'
   )
   upsheets = upsheets[upsheets['hours'] != 0]
-
   upsheets['date']=bonus['Date'].min()
-
   upsheets = upsheets.rename(columns={'First Name': 'first_name', 'Last Name':'last_name'})
   cols = ['Company', 'first_name', 'last_name', 'type', 'date','hours']
   upsheets = upsheets[cols]
