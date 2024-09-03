@@ -242,7 +242,14 @@ def calc_timesheets_n_billings(files):
     var_name='type',
     value_name='hours'
   )
+  upsheets = upsheets[upsheets['hours'] != 0]
+
   upsheets['date']=bonus['Date'].min()
+
+  upsheets = upsheets.rename(columns={'First Name': 'first_name', 'Last Name':'last_name'})
+  cols = ['Company', 'first_name', 'last_name', 'type', 'date','hours']
+  upsheets = upsheets[cols]
+
 
   return timesheets, billings, over_threshold, analysis, bonus, upsheets
 
