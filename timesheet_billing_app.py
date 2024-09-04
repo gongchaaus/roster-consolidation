@@ -299,9 +299,9 @@ def calc_timesheets_n_billings(files):
   upsheets = upsheets[upsheets_cols]
 
   company_cols = ['first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
-  GCM = GCM[upsheets_cols]
-  HL = HL[upsheets_cols]
-  SS = SS[upsheets_cols]
+  GCM = GCM[company_cols]
+  HL = HL[company_cols]
+  SS = SS[company_cols]
 
   return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS
 
