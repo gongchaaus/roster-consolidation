@@ -264,6 +264,16 @@ def calc_timesheets_n_billings(files):
   cols = ['Company', 'first_name', 'last_name', 'type', 'date','hours']
   upsheets = upsheets[cols]
 
+  upsheets['rate'] = ''
+  upsheets['calculation_type'] = ''
+
+  fixed_hours_calc_types = ["Personal/Carer's Leave", 'Annual Leave', 'Other Unpaid Leave']
+  upsheets.loc[upsheets['type'].isin(fixed_hours_calc_types), 'calculation_type'] = 'FIXEDHOURS'
+
+  fixed_amount_calc_types = ['Bonus']
+  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'calculation_type'] = 'FIXEDAMOUNT'
+  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'rate'] = upsheets['hours']
+  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'hours'] = ''
 
   return timesheets, billings, over_threshold, analysis, bonus, upsheets
 
