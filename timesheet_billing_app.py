@@ -61,6 +61,12 @@ def extract_rostered_hr(file, sheet_name):
   df = df[df['Hours'] != 0]
   return df
 
+# Function to count digits before the decimal point in a float number
+def count_digits_before_decimal(number):
+  # Convert to string, split at the decimal point, and count digits in the integer part
+  integer_part = str(number).split('.')[0]
+  return len(integer_part.replace('-', '').replace('nan', ''))
+
 def calc_timesheets_n_billings(files):
   print('calc')
   timesheets = pd.DataFrame()
@@ -84,8 +90,9 @@ def calc_timesheets_n_billings(files):
     additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
     additional_hr = pd.concat([additional_hr, additional_hr_w2], ignore_index=True)
 
-  #Remov  e irrelevant rows
-  timesheets.dropna(subset = ['Employee ID'], inplace=True)
+  #Remove irrelevant rows
+  timesheets = timesheets.dropna(subset = ['Employee ID'])
+
   #Keep the needed columns
   timesheets_cols = [1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
   timesheets = timesheets[timesheets.columns[timesheets_cols]]
@@ -261,8 +268,7 @@ def calc_timesheets_n_billings(files):
   upsheets = upsheets[upsheets['hours'] != 0]
   upsheets['date']=bonus['Date'].min()
   upsheets = upsheets.rename(columns={'First Name': 'first_name', 'Last Name':'last_name'})
-  cols = ['Company', 'first_name', 'last_name', 'type', 'date','hours']
-  upsheets = upsheets[cols]
+
 
   upsheets['rate'] = ''
   upsheets['calculation_type'] = ''
@@ -275,7 +281,30 @@ def calc_timesheets_n_billings(files):
   upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'rate'] = upsheets['hours']
   upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'hours'] = ''
 
-  return timesheets, billings, over_threshold, analysis, bonus, upsheets
+  upsheets['digit'] = upsheets['Employee ID'].apply(count_digits_before_decimal)
+# Define a mapping of existing types to new types
+  casual_mapping = {
+      'Ordinary Hours': 'Casual Ordinary Hours',
+      'Saturday': 'Casual Saturday',
+      'Sunday': 'Casual Sunday',
+      'Public Holiday Hours': 'Casual Public Holiday Hours',
+      'Late Evening Hours 10pm to Midnight' : 'Casual Late Evening Hours 10pm to Midnight',
+      'Late Evening Hours Midnight - 6AM' : 'Casual Late Evening Hours Midnight - 6AM',
+  }
+  upsheets.loc[upsheets['digit'] == 6, 'type'] = upsheets.loc[upsheets['digit'] == 6, 'type'].map(casual_mapping)
+  GCM = upsheets[upsheets['Company']=='GCM']
+  HL = upsheets[upsheets['Company']=='HL']
+  SS = upsheets[upsheets['Company']=='SS']
+  upsheets_cols = ['Company','first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
+  upsheets = upsheets[upsheets_cols]
+
+  company_cols = ['first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
+  GCM = GCM[upsheets_cols]
+  HL = HL[upsheets_cols]
+  SS = SS[upsheets_cols]
+
+  return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS
+
 
 
 # # # END OF FUNCTIONS
@@ -293,7 +322,7 @@ output = st.empty()
 
 # if uploaded_files is not None:
 if len(uploaded_files) > 0:
-    ts, bl, ot, an, bo, up = calc_timesheets_n_billings(uploaded_files)
+    ts, bl, ot, an, bo, up, gcm, hl, ss = calc_timesheets_n_billings(uploaded_files)
 
     buffer = io.BytesIO()
 
@@ -305,6 +334,9 @@ if len(uploaded_files) > 0:
         an.to_excel(writer, sheet_name='Analysis',index = False)
         bo.to_excel(writer, sheet_name='Bonus',index = False)
         up.to_excel(writer, sheet_name='Upsheets',index = False)
+        gcm.to_excel(writer, sheet_name='Upsheets GCM',index = False)
+        hl.to_excel(writer, sheet_name='Upsheets HL',index = False)
+        ss.to_excel(writer, sheet_name='Upsheets SS',index = False)
 
     # Close the Pandas Excel writer and output the Excel file to the buffer
     writer.close()
