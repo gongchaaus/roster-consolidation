@@ -291,7 +291,12 @@ def calc_timesheets_n_billings(files):
       'Late Evening Hours 10pm to Midnight' : 'Casual Late Evening Hours 10pm to Midnight',
       'Late Evening Hours Midnight - 6AM' : 'Casual Late Evening Hours Midnight - 6AM',
   }
-  upsheets.loc[upsheets['digit'] == 6, 'type'] = upsheets.loc[upsheets['digit'] == 6, 'type'].map(casual_mapping)
+# Use map with fillna to keep original values if no match in casual_mapping
+  upsheets.loc[upsheets['digit'] == 6, 'type'] = (
+      upsheets.loc[upsheets['digit'] == 6, 'type']
+      .map(casual_mapping)
+      .fillna(upsheets.loc[upsheets['digit'] == 6, 'type'])
+  )
   GCM = upsheets[upsheets['Company']=='GCM']
   HL = upsheets[upsheets['Company']=='HL']
   SS = upsheets[upsheets['Company']=='SS']
