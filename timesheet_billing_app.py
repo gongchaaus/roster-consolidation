@@ -13,9 +13,10 @@ mysql_database = 'gong_cha_redcat_db'
 mysql_connection_string = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
 mysql_engine = create_engine(mysql_connection_string)
 
+
 # # # START OF FUNCTIONS
 def read_csv_from_config(gs_config):
-    url = f'https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}'
+    url = f"https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}"
     # Create the SQLAlchemy engine
     df  = pd.read_csv(url)
     return df
