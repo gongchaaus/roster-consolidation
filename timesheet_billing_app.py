@@ -13,8 +13,13 @@ mysql_database = 'gong_cha_redcat_db'
 mysql_connection_string = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
 mysql_engine = create_engine(mysql_connection_string)
 
-
 # # # START OF FUNCTIONS
+def read_csv_from_config(gs_config):
+    url = f'https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}'
+    # Create the SQLAlchemy engine
+    df  = pd.read_csv(url)
+    return df
+
 
 def extract_additional_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
@@ -165,13 +170,18 @@ def calc_timesheets_n_billings(files):
 
   bonus.dropna(subset=['Store ID'], inplace = True)
 
-  # Stitch recid_plo
-  sheet_id = '1aVcnah9Cp_PUvFiXgd2XRmBpLhumCqHUaqROaLcpYfc'
-  sheet_name = 'store_id_ref'
-  url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-  store_id_ref_crm = pd.read_csv(url)
-  store_id_ref_crm = store_id_ref_crm.rename(columns={'store_id' : 'Store ID'})
-  bonus = pd.merge(bonus, store_id_ref_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
+  store_crm_config = {
+    'sheet_id': '1aVcnah9Cp_PUvFiXgd2XRmBpLhumCqHUaqROaLcpYfc',
+    'sheet_name': 'store'
+  }
+  store_crm = read_csv_from_config(store_crm_config)
+  store_crm['opened_on'] = pd.to_datetime(store_crm['opened_on'])
+  store_crm['closed_on'] = pd.to_datetime(store_crm['closed_on'])
+  store_crm_col = ['store_id', 'recid_plo', 'menu_type']
+  store_crm = store_crm[store_crm_col]
+  store_crm = store_crm[~store_crm['recid_plo'].isna()]
+  
+  bonus = pd.merge(bonus, store_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
   bonus['recid_plo'] = bonus['recid_plo'].astype(int)
 
   # Stich sales based on recid_plo & dates, skip if there is no Date
@@ -309,7 +319,6 @@ def calc_timesheets_n_billings(files):
   SS = SS[company_cols]
 
   return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS
-
 
 
 # # # END OF FUNCTIONS
