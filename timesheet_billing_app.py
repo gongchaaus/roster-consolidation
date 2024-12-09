@@ -181,6 +181,7 @@ def calc_timesheets_n_billings(files):
   store_crm_col = ['store_id', 'recid_plo', 'menu_type']
   store_crm = store_crm[store_crm_col]
   store_crm = store_crm[~store_crm['recid_plo'].isna()]
+  store_crm = store_crm.rename(columns={'store_id': 'Store ID'})
   
   bonus = pd.merge(bonus, store_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
   bonus['recid_plo'] = bonus['recid_plo'].astype(int)
