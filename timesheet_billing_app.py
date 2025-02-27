@@ -1,5 +1,15 @@
 import pandas as pd
-from database_utils import *
+import clickhouse_connect
+clickhouse_conn_params = {
+    'host': '172.105.163.229',
+    'port': '8123',
+    'username': 'eddy',
+    'password': 'jdd6HBrv',
+    'database': 'gong_cha_redcat_db',
+}
+
+gong_cha_redcat_db_clickhouse_client = clickhouse_connect.get_client(**clickhouse_conn_params)
+
 
 # # # START OF FUNCTIONS
 def read_csv_from_config(gs_config):
@@ -7,6 +17,13 @@ def read_csv_from_config(gs_config):
     # Create the SQLAlchemy engine
     df  = pd.read_csv(url)
     return df
+
+def get_DataFrame_from_clickhouse(query, clickhouse_client):
+    try:
+        clickhouse_df = clickhouse_client.query_df(query)
+    except Exception as e:
+        clickhouse_df = pd.DataFrame()
+    return clickhouse_df
 
 def extract_additional_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
