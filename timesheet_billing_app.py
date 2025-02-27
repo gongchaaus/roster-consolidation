@@ -1,19 +1,5 @@
 import pandas as pd
-
-
-from sqlalchemy import create_engine
-import mysql.connector
-
-mysql_host = '34.116.84.145'
-mysql_port = '3306'
-mysql_user = 'gong-cha'
-mysql_password = 'HelloGongCha2012'
-mysql_database = 'gong_cha_redcat_db'
-
-# Engine for MySQL
-mysql_connection_string = f"mysql+mysqlconnector://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
-mysql_engine = create_engine(mysql_connection_string)
-
+from database_utils import *
 
 # # # START OF FUNCTIONS
 def read_csv_from_config(gs_config):
@@ -21,7 +7,6 @@ def read_csv_from_config(gs_config):
     # Create the SQLAlchemy engine
     df  = pd.read_csv(url)
     return df
-
 
 def extract_additional_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
@@ -205,16 +190,27 @@ def calc_timesheets_n_billings(files):
 
   excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
 
-  query = '''
-  SELECT ts2.recid_plo, ts.itemdate as Date, sum(ts.qty*ts.price) as Sales
-  FROM tbl_salesitems ts 
-  JOIN tbl_salesheaders ts2 on ts.recid_mixh = ts2.recid
-  WHERE ts.itemdate >= '{start}' and ts.itemdate <= '{end}' and ts2.recid_plo in ({recid_plo_list}) and ts.recid_plu not in ({excluded_recid_plu})
-  GROUP BY ts2.recid_plo, ts.itemdate
-  ORDER BY ts.itemdate ASC, recid_plo ASC
-  '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
+  # query = '''
+  # SELECT ts2.recid_plo, ts.itemdate as Date, sum(ts.qty*ts.price) as Sales
+  # FROM tbl_salesitems ts 
+  # JOIN tbl_salesheaders ts2 on ts.recid_mixh = ts2.recid
+  # WHERE ts.itemdate >= '{start}' and ts.itemdate <= '{end}' and ts2.recid_plo in ({recid_plo_list}) and ts.recid_plu not in ({excluded_recid_plu})
+  # GROUP BY ts2.recid_plo, ts.itemdate
+  # ORDER BY ts.itemdate ASC, recid_plo ASC
+  # '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
+  # sales_df = pd.read_sql(query, mysql_engine)
 
-  sales_df = pd.read_sql(query, mysql_engine)
+  query = '''
+  SELECT recid_plo, itemdate as Date, sum(net_amount + gst_amount) as Sales
+  FROM d_txnlines
+  WHERE itemdate >='{start}' and itemdate <= '{end}' and recid_plo in ({recid_plo_list}) and recid_plu not in ({excluded_recid_plu})
+  GROUP BY recid_plo, itemdate
+  ORDER BY itemdate ASC, recid_plo ASC
+  '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
+  print(query)
+  clickhouse_client = gong_cha_redcat_db_clickhouse_client
+  sales_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
+
   sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
 
   bonus = pd.merge(bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
@@ -325,7 +321,6 @@ def calc_timesheets_n_billings(files):
 
 
 # # # END OF FUNCTIONS
-
 
 import io
 import streamlit as st
