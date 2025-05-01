@@ -2,7 +2,7 @@ pandas
 streamlit
 xlsxwriter
 openpyxl
-psycopg2
+psycopg2-binary
 mysql-connector-python
 pymysql
 clickhouse-connect
