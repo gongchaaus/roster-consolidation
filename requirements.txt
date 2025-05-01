@@ -2,4 +2,8 @@ pandas
 streamlit
 xlsxwriter
 openpyxl
+psycopg2
+mysql-connector-python
+pymysql
 clickhouse-connect
+SQLAlchemy

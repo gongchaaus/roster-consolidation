@@ -1,30 +1,7 @@
-import pandas as pd
-import clickhouse_connect
-clickhouse_conn_params = {
-    'host': '172.105.163.229',
-    'port': '8123',
-    'username': 'eddy',
-    'password': 'jdd6HBrv',
-    'database': 'gong_cha_redcat_db',
-}
-
-gong_cha_redcat_db_clickhouse_client = clickhouse_connect.get_client(**clickhouse_conn_params)
-
+from database_utils import *
+clickhouse_client = gong_cha_redcat_db_clickhouse_client
 
 # # # START OF FUNCTIONS
-def read_csv_from_config(gs_config):
-    url = f"https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}"
-    # Create the SQLAlchemy engine
-    df  = pd.read_csv(url)
-    return df
-
-def get_DataFrame_from_clickhouse(query, clickhouse_client):
-    try:
-        clickhouse_df = clickhouse_client.query_df(query)
-    except Exception as e:
-        clickhouse_df = pd.DataFrame()
-    return clickhouse_df
-
 def extract_additional_hr(file, sheet_name):
   df = pd.read_excel(file, sheet_name = sheet_name)
   df = df.dropna(subset=['Employee ID'])
@@ -99,6 +76,7 @@ def calc_timesheets_n_billings(files):
     additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
     additional_hr = pd.concat([additional_hr, additional_hr_w2], ignore_index=True)
 
+  roster_start_date = rostered_hr['Date'].min()
   #Remove irrelevant rows
   timesheets = timesheets.dropna(subset = ['Employee ID'])
 
@@ -174,75 +152,67 @@ def calc_timesheets_n_billings(files):
 
   bonus.dropna(subset=['Store ID'], inplace = True)
 
-  store_crm_config = {
-    'sheet_id': '1aVcnah9Cp_PUvFiXgd2XRmBpLhumCqHUaqROaLcpYfc',
-    'sheet_name': 'store'
-  }
-  store_crm = read_csv_from_config(store_crm_config)
-  store_crm['opened_on'] = pd.to_datetime(store_crm['opened_on'])
-  store_crm['closed_on'] = pd.to_datetime(store_crm['closed_on'])
-  store_crm_col = ['store_id', 'recid_plo', 'menu_type']
-  store_crm = store_crm[store_crm_col]
-  store_crm = store_crm[~store_crm['recid_plo'].isna()]
-  store_crm = store_crm.rename(columns={'store_id': 'Store ID'})
+  if bonus.shape[0] == 0:
+     print('No bonus to process')
   
-  bonus = pd.merge(bonus, store_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
-  bonus['recid_plo'] = bonus['recid_plo'].astype(int)
+  else:
+    store_crm_config = {
+      'sheet_id': '1aVcnah9Cp_PUvFiXgd2XRmBpLhumCqHUaqROaLcpYfc',
+      'sheet_name': 'store'
+    }
+    store_crm = read_csv_from_config(store_crm_config)
+    store_crm['opened_on'] = pd.to_datetime(store_crm['opened_on'])
+    store_crm['closed_on'] = pd.to_datetime(store_crm['closed_on'])
+    store_crm_col = ['store_id', 'recid_plo', 'menu_type']
+    store_crm = store_crm[store_crm_col]
+    store_crm = store_crm[~store_crm['recid_plo'].isna()]
+    store_crm = store_crm.rename(columns={'store_id': 'Store ID'})
+    
+    bonus = pd.merge(bonus, store_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
+    bonus['recid_plo'] = bonus['recid_plo'].astype(int)
 
-  # Stich sales based on recid_plo & dates, skip if there is no Date
-  start = bonus['Date'].min()
-  end = bonus['Date'].max()
+    # Stich sales based on recid_plo & dates, skip if there is no Date
+    start = bonus['Date'].min()
+    end = bonus['Date'].max()
 
-  start_str = start.strftime('%Y-%m-%d')
-  end_str = end.strftime('%Y-%m-%d')
+    start_str = start.strftime('%Y-%m-%d')
+    end_str = end.strftime('%Y-%m-%d')
 
-  recid_plo_list = bonus['recid_plo'].unique().tolist()
-  recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
+    recid_plo_list = bonus['recid_plo'].unique().tolist()
+    recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
 
-  sheet_id = '1peA8effpeSTk3duIjxF46V-PrDD8tv3fubTCDEpD940'
-  sheet_name = 'ops_bonus_exclusion'
-  url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-  exclusion_df = pd.read_csv(url)
-  excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
+    query = '''
+    SELECT *
+    FROM r_opsbonusexclusion
+    '''
+    exclusion_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
+    excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
+    excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
 
-  excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
+    query = '''
+    SELECT recid_plo, itemdate as Date, sum(net_amount + gst_amount) as Sales
+    FROM d_txnlines
+    WHERE itemdate >='{start}' and itemdate <= '{end}' and recid_plo in ({recid_plo_list}) and recid_plu not in ({excluded_recid_plu})
+    GROUP BY recid_plo, itemdate
+    ORDER BY itemdate ASC, recid_plo ASC
+    '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
+    sales_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
 
-  # query = '''
-  # SELECT ts2.recid_plo, ts.itemdate as Date, sum(ts.qty*ts.price) as Sales
-  # FROM tbl_salesitems ts 
-  # JOIN tbl_salesheaders ts2 on ts.recid_mixh = ts2.recid
-  # WHERE ts.itemdate >= '{start}' and ts.itemdate <= '{end}' and ts2.recid_plo in ({recid_plo_list}) and ts.recid_plu not in ({excluded_recid_plu})
-  # GROUP BY ts2.recid_plo, ts.itemdate
-  # ORDER BY ts.itemdate ASC, recid_plo ASC
-  # '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
-  # sales_df = pd.read_sql(query, mysql_engine)
+    sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
 
-  query = '''
-  SELECT recid_plo, itemdate as Date, sum(net_amount + gst_amount) as Sales
-  FROM d_txnlines
-  WHERE itemdate >='{start}' and itemdate <= '{end}' and recid_plo in ({recid_plo_list}) and recid_plu not in ({excluded_recid_plu})
-  GROUP BY recid_plo, itemdate
-  ORDER BY itemdate ASC, recid_plo ASC
-  '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
-  print(query)
-  clickhouse_client = gong_cha_redcat_db_clickhouse_client
-  sales_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
+    bonus = pd.merge(bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
 
-  sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
+    # Stitch Target Sales & Bonus Rates
+    sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
+    sheet_name = 'Targets'
+    url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
+    targets = pd.read_csv(url)
+    targets['Date'] = pd.to_datetime(targets['Date']).dt.date
 
-  bonus = pd.merge(bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
-
-  # Stitch Target Sales & Bonus Rates
-  sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
-  sheet_name = 'Targets'
-  url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-  targets = pd.read_csv(url)
-  targets['Date'] = pd.to_datetime(targets['Date']).dt.date
-
-  # Change Bonus Rates to 0, if Target Sales is not met
-  bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
-  bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['Sales'] >= bonus['Target Sales'], 0)
-  bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
+    # Change Bonus Rates to 0, if Target Sales is not met
+    bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
+    bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['Sales'] >= bonus['Target Sales'], 0)
+    bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
 
   # Work out additional_hr
   additional_hr = additional_hr.dropna(subset=['Employee ID'])
@@ -264,9 +234,13 @@ def calc_timesheets_n_billings(files):
   analysis = pd.concat([rostered_hr, additional_hr])
 
   # Concat Bouns on to Timesheets
-  bonus_summary = bonus.groupby('Employee ID', as_index = False).agg({'Bonus':'sum'})
-  timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID'], how = 'left')
-  timesheets.fillna({'Bonus':0}, inplace = True)
+  if bonus.shape[0]==0:
+     print('No Bonus Summary to calculate')
+     timesheets['Bonus']=0
+  else:
+    bonus_summary = bonus.groupby('Employee ID', as_index = False).agg({'Bonus':'sum'})
+    timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID'], how = 'left')
+    timesheets.fillna({'Bonus':0}, inplace = True)
 
   upsheets = pd.melt(
     timesheets, 
@@ -292,7 +266,7 @@ def calc_timesheets_n_billings(files):
   upsheets['type'] = upsheets['type'].replace(type_replacement)
   
   upsheets = upsheets[upsheets['hours'] != 0]
-  upsheets['date']=bonus['Date'].min()
+  upsheets['date']=roster_start_date
   upsheets = upsheets.rename(columns={'First Name': 'first_name', 'Last Name':'last_name'})
 
 
@@ -326,6 +300,8 @@ def calc_timesheets_n_billings(files):
   GCM = upsheets[upsheets['Company']=='GCM']
   HL = upsheets[upsheets['Company']=='HL']
   SS = upsheets[upsheets['Company']=='SS']
+  MSC = upsheets[upsheets['Company']=='MSC']
+  WLD = upsheets[upsheets['Company']=='WLD']
   upsheets_cols = ['Company','first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
   upsheets = upsheets[upsheets_cols]
 
@@ -333,8 +309,10 @@ def calc_timesheets_n_billings(files):
   GCM = GCM[company_cols]
   HL = HL[company_cols]
   SS = SS[company_cols]
+  MSC = MSC[company_cols]
+  WLD = WLD[company_cols]
 
-  return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS
+  return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS, MSC, WLD
 
 
 # # # END OF FUNCTIONS
@@ -351,7 +329,7 @@ output = st.empty()
 
 # if uploaded_files is not None:
 if len(uploaded_files) > 0:
-    ts, bl, ot, an, bo, up, gcm, hl, ss = calc_timesheets_n_billings(uploaded_files)
+    ts, bl, ot, an, bo, up, gcm, hl, ss, msc, wld = calc_timesheets_n_billings(uploaded_files)
 
     buffer = io.BytesIO()
 
@@ -366,6 +344,8 @@ if len(uploaded_files) > 0:
         gcm.to_excel(writer, sheet_name='Upsheets GCM',index = False)
         hl.to_excel(writer, sheet_name='Upsheets HL',index = False)
         ss.to_excel(writer, sheet_name='Upsheets SS',index = False)
+        msc.to_excel(writer, sheet_name='Upsheets MSC',index = False)
+        wld.to_excel(writer, sheet_name='Upsheets WLD',index = False)
 
     # Close the Pandas Excel writer and output the Excel file to the buffer
     writer.close()
