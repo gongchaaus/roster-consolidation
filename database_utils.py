@@ -6,7 +6,7 @@ from datasource import *
 from log import logger
 
 def read_csv_from_config(gs_config):
-    url = f"https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}"
+    url = f'https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}'
     # Create the SQLAlchemy engine
     df  = pd.read_csv(url)
     return df
@@ -20,7 +20,7 @@ def get_DataFrame_from_mariadb(query, mariadb_engine):
     try:
         mariadb_df = pd.read_sql(query, mariadb_engine)
     except Exception as e:
-        mariadb_df = pd.DataFrame()
+        mariadb_df = None
         extra['error'] = str(e).replace("'", "''")[:2048].strip("'").strip("'")
         logger.exception("Error executing query", extra=extra)
     finally:
@@ -41,7 +41,7 @@ def get_DataFrame_from_postgresql(query, postgresql_engine):
     try:
         postgresql_df = pd.read_sql(query, postgresql_engine)
     except Exception as e:
-        postgresql_df = pd.DataFrame()
+        postgresql_df = None
         extra['error'] = str(e).replace("'", "''")[:2048].strip("'").strip("'")
         logger.exception("Error executing query", extra=extra)
     finally:
@@ -62,7 +62,7 @@ def get_DataFrame_from_clickhouse(query, clickhouse_client):
     try:
         clickhouse_df = clickhouse_client.query_df(query)
     except Exception as e:
-        clickhouse_df = pd.DataFrame()
+        clickhouse_df = None
         extra['error'] = str(e).replace("'", "''")[:2048].strip("'").strip("'")
         logger.exception("Error executing query", extra=extra)
     finally:
@@ -151,7 +151,6 @@ def insert_DataFrameinto_clickhouse(table_name, df, clickhouse_client):
     try:
         clickhouse_client.insert_df(table_name, df)
     except Exception as e:
-        # print(f"Error executing query: {e}")
         extra['error'] = str(e).replace("'", "''")[:2048].strip("'").strip("'")
         logger.exception("Error executing query", extra=extra)
     finally:
@@ -222,6 +221,7 @@ def migrate_table_schema(table_name, mariadb_engine, clickhouse_client):
         'float': ('Float32', '0'),
         'double': ('Float64', '0'),
         'timestamp': ('DateTime', "'1970-01-01 00:00:00'"),
+        'time': ('String', "''"),
         'char': ('String', "''"),
         'boolean': ('UInt8', '0'),
     }
@@ -371,6 +371,8 @@ def insert_into_clickhouse(table_name, df, clickhouse_client, chunk_size=10000):
 
     # Insert the DataFrame into ClickHouse in chunks
     total_rows = len(df)
+    # Replace NaN with Python None for Nullable columns
+    df = df.where(pd.notnull(df), None)
     for i in range(0, total_rows, chunk_size):
         chunk = df.iloc[i:i+chunk_size]
         insert_DataFrameinto_clickhouse(table_name, chunk, clickhouse_client)
