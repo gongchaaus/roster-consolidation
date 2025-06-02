@@ -163,7 +163,7 @@ def calc_timesheets_n_billings(files):
     store_crm = read_csv_from_config(store_crm_config)
     store_crm['opened_on'] = pd.to_datetime(store_crm['opened_on'])
     store_crm['closed_on'] = pd.to_datetime(store_crm['closed_on'])
-    store_crm_col = ['store_id', 'recid_plo', 'menu_type']
+    store_crm_col = ['store_id', 'recid_plo']
     store_crm = store_crm[store_crm_col]
     store_crm = store_crm[~store_crm['recid_plo'].isna()]
     store_crm = store_crm.rename(columns={'store_id': 'Store ID'})
