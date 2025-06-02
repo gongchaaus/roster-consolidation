@@ -6,7 +6,7 @@ from datasource import *
 from log import logger
 
 def read_csv_from_config(gs_config):
-    url = f'https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}'
+    url = f"https://docs.google.com/spreadsheets/d/{gs_config['sheet_id']}/gviz/tq?tqx=out:csv&sheet={gs_config['sheet_name']}"
     # Create the SQLAlchemy engine
     df  = pd.read_csv(url)
     return df
