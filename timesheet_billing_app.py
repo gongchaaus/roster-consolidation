@@ -250,8 +250,8 @@ def calc_timesheets_n_billings(files):
     value_name='hours'
   )
 
-  lvl3_eid = employees[employees['Level'] == 'Level 3']['Employee ID']
-  upsheets['type'] = upsheets.apply(lambda row: 'Sun Lvl3' if row['Employee ID'] in lvl3_eid.values and row['type'] == 'Sun' else row['type'], axis=1)
+  # lvl3_eid = employees[employees['Level'] == 'Level 3']['Employee ID']
+  # upsheets['type'] = upsheets.apply(lambda row: 'Sun Lvl3' if row['Employee ID'] in lvl3_eid.values and row['type'] == 'Sun' else row['type'], axis=1)
 
   type_replacement = {
     'Ord': 'Ordinary Hours',
