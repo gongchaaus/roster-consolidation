@@ -56,13 +56,13 @@ def count_digits_before_decimal(number):
 def calc_timesheets_n_billings(files):
   print('calc')
   timesheets = pd.DataFrame()
-  billings = pd.DataFrame()
+  # billings = pd.DataFrame()
   rostered_hr = pd.DataFrame()
   additional_hr = pd.DataFrame()
 
   for file in files:
     timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
-    billing = pd.read_excel(file, sheet_name = 'Billing')
+    # billing = pd.read_excel(file, sheet_name = 'Billing')
     rostered_hr_w1 = extract_rostered_hr(file, 'Week 1 Roster')
     rostered_hr_w2 = extract_rostered_hr(file, 'Week 2 Roster')
     additional_hr_w1 = extract_additional_hr(file, 'Week 1 Roster')
@@ -70,7 +70,7 @@ def calc_timesheets_n_billings(files):
     employees = pd.read_excel(file, sheet_name = 'Employees')
 
     timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
-    billings = pd.concat([billings, billing], ignore_index=True)
+    # billings = pd.concat([billings, billing], ignore_index=True)
     rostered_hr = pd.concat([rostered_hr, rostered_hr_w1], ignore_index=True)
     rostered_hr = pd.concat([rostered_hr, rostered_hr_w2], ignore_index=True)
     additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
@@ -81,20 +81,35 @@ def calc_timesheets_n_billings(files):
   timesheets = timesheets.dropna(subset = ['Employee ID'])
 
   #Keep the needed columns
-  timesheets_cols = [1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+  timesheets_cols = [1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
   timesheets = timesheets[timesheets.columns[timesheets_cols]]
   timesheets['Update Wage'] = timesheets['Update Wage'].astype(bool)
   #Column Aggregations
-  timesheets_agg_cols = {'First Name':'first','Last Name':'first','Update Wage':'first','Hour Threshold':'first','Company':'first','Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
-  timesheets = timesheets.groupby('Employee ID', as_index = False).agg(timesheets_agg_cols)
+  over_threshold_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
+  # timesheets = timesheets.groupby(['Employee ID', 'First Name','Last Name', 'Update Wage', 'Hour Threshold', 'Labour Hire', 'Store', 'Operator'], as_index = False).agg(timesheets_agg_cols)
+  over_threshold = timesheets.groupby(['Employee ID', 'First Name','Last Name', 'Update Wage', 'Hour Threshold'], as_index = False).agg(over_threshold_agg_cols)
+
   #Calculate Over Threshold
-  timesheets['Over Threshold'] = timesheets['Total'] - timesheets['Hour Threshold']
-  timesheets.loc[timesheets["Over Threshold"] <=0, "Over Threshold"] = 0
-  #Keep Over Thresholds to a new df
-  over_threshold = timesheets[timesheets['Over Threshold']>0]
+  over_threshold['Over Threshold'] = over_threshold['Total'] - over_threshold['Hour Threshold']
+  over_threshold.loc[over_threshold["Over Threshold"] <=0, "Over Threshold"] = 0
+
   #Reduce Ord & Total with the excess
-  timesheets['Ord'] = timesheets['Ord'] - timesheets['Over Threshold']
-  timesheets['Total'] = timesheets['Total'] - timesheets['Over Threshold']
+  over_threshold['Ord OT Ratio'] = (over_threshold['Ord'] - over_threshold['Over Threshold']) / over_threshold['Ord']
+  # over_threshold['Ord'] = over_threshold['Ord'] - over_threshold['Over Threshold']
+  # over_threshold['Total'] = over_threshold['Total'] - over_threshold['Over Threshold']
+
+  time_sheets_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
+  timesheets = timesheets.groupby(['Employee ID', 'First Name','Last Name', 'Update Wage', 'Hour Threshold', 'Labour Hire', 'Store', 'Operator'], as_index = False).agg(time_sheets_agg_cols)
+
+  # Add Ord OT Ratio and Over Threshold columns from over_threshold dataframe
+  timesheets = pd.merge(timesheets, over_threshold[['Employee ID', 'Ord OT Ratio', 'Over Threshold']], on=['Employee ID'], how='left')
+  timesheets.fillna({'Ord OT Ratio': 1, 'Over Threshold': 0}, inplace=True)
+
+
+  # Apply Ord OT Ratio to Ord hours when Over Threshold > 0
+  timesheets.loc[timesheets['Over Threshold'] > 0, 'Ord'] = timesheets['Ord'] * timesheets['Ord OT Ratio']
+  timesheets.loc[timesheets['Over Threshold'] > 0, 'Total'] = timesheets['Total'] - timesheets['Over Threshold']
+
   #Convert 80 & 100 hours to 76 hours
   hours_col = ['Ord', 'Sat','Sun','Eve 1','Eve 2','Pub','Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Total']
   if(100 in timesheets["Hour Threshold"].values):
@@ -111,20 +126,18 @@ def calc_timesheets_n_billings(files):
           conversion = int(str(threshold)[-2:])
           # Update multiple columns using .loc
           timesheets.loc[index, hours_col] = timesheets.loc[index, hours_col] / conversion * base
-
+  
+  
+  #Keep Over Thresholds to a new df
+  over_threshold = over_threshold[over_threshold['Over Threshold']>0]
+  
   #drop Hour Threshold & Over Threshold
-  timesheets = timesheets.drop(['Hour Threshold','Over Threshold'],axis = 1)
 
-  #Remove irrelevant rows
-  billings.dropna(subset=['Store'],inplace = True)
-  billings = billings[billings['Total'] > 0]
+  timesheets = timesheets.drop(['Hour Threshold','Over Threshold', 'Ord OT Ratio'],axis = 1)
 
-  #Keep the needed columns
-  billings_cols = [0,1,2,3,4,5,6,7,8,9,10,11]
-  billings = billings[billings.columns[billings_cols]]
   #Column Aggregations
   billings_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
-  billings = billings.groupby('Store', as_index = False).agg(billings_agg_cols)
+  billings = timesheets.groupby(['Labour Hire', 'Store', 'Operator'], as_index = False).agg(billings_agg_cols)
 
   rostered_hr = pd.merge(rostered_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
   rostered_hr_col = [
@@ -238,20 +251,26 @@ def calc_timesheets_n_billings(files):
      print('No Bonus Summary to calculate')
      timesheets['Bonus']=0
   else:
-    bonus_summary = bonus.groupby('Employee ID', as_index = False).agg({'Bonus':'sum'})
-    timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID'], how = 'left')
+
+    bonus_summary = bonus.groupby(['Employee ID', 'Store'], as_index = False).agg({'Bonus':'sum'})
+    # print(bonus)
+    # print(bonus_summary)
+    timesheets['Store'] = timesheets['Store'].astype(str)
+    bonus_summary['Store'] = bonus_summary['Store'].astype(str)
+    timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID', 'Store'], how = 'left')
+
     timesheets.fillna({'Bonus':0}, inplace = True)
 
   upsheets = pd.melt(
     timesheets, 
-    id_vars=['Employee ID', 'First Name', 'Last Name', 'Company'],  # Columns to keep
+    id_vars=['Employee ID', 'First Name', 'Last Name', 'Labour Hire'],  # Columns to keep
     value_vars=['Ord', 'Sat', 'Sun', 'Pub', 'Eve 1', 'Eve 2', 'No. of Shifts', 'Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Bonus'],  # Columns to unpivot
     var_name='type',
     value_name='hours'
   )
 
-  # lvl3_eid = employees[employees['Level'] == 'Level 3']['Employee ID']
-  # upsheets['type'] = upsheets.apply(lambda row: 'Sun Lvl3' if row['Employee ID'] in lvl3_eid.values and row['type'] == 'Sun' else row['type'], axis=1)
+  lvl3_eid = employees[employees['Level'] == 'Level 3']['Employee ID']
+  upsheets['type'] = upsheets.apply(lambda row: 'Sun Lvl3' if row['Employee ID'] in lvl3_eid.values and row['type'] == 'Sun' else row['type'], axis=1)
 
   type_replacement = {
     'Ord': 'Ordinary Hours',
@@ -301,12 +320,12 @@ def calc_timesheets_n_billings(files):
       .map(casual_mapping)
       .fillna(upsheets.loc[upsheets['digit'] == 6, 'type'])
   )
-  GCM = upsheets[upsheets['Company']=='GCM']
-  HL = upsheets[upsheets['Company']=='HL']
-  SS = upsheets[upsheets['Company']=='SS']
-  MSC = upsheets[upsheets['Company']=='MSC']
-  WLD = upsheets[upsheets['Company']=='WLD']
-  upsheets_cols = ['Company','first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
+  GCM = upsheets[upsheets['Labour Hire']=='GCM']
+  HL = upsheets[upsheets['Labour Hire']=='HL']
+  SS = upsheets[upsheets['Labour Hire']=='SS']
+  MSC = upsheets[upsheets['Labour Hire']=='MSC']
+  WLD = upsheets[upsheets['Labour Hire']=='WLD']
+  upsheets_cols = ['Labour Hire','first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
   upsheets = upsheets[upsheets_cols]
 
   company_cols = ['first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
@@ -317,7 +336,6 @@ def calc_timesheets_n_billings(files):
   WLD = WLD[company_cols]
 
   return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS, MSC, WLD
-
 
 
 # # # END OF FUNCTIONS
