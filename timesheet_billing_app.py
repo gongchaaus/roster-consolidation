@@ -1,344 +1,45 @@
-from database_utils import *
-clickhouse_client = gong_cha_redcat_db_clickhouse_client
 
-# # # START OF FUNCTIONS
-def extract_additional_hr(file, sheet_name):
-  df = pd.read_excel(file, sheet_name = sheet_name)
-  df = df.dropna(subset=['Employee ID'])
+# # # END OF FUNCTIONS
 
-  if df['Employee ID'].dtypes == 'object':
-    df['Employee ID'] = df['Employee ID'].str[:6]
-  df['Employee ID'] = df['Employee ID'].astype(int)
+import io
+import streamlit as st
 
-  if df['Store'].dtypes == float:
-    df['Store'] = df['Store'].astype(int).astype(str)
+st.title('Timesheet & Billing')
 
-  df = df.fillna({'Add': 0, 'Add.1': 0,'Add.2': 0,'Add.3': 0,'Add.4': 0,'Add.5': 0,'Personal Leave': 0,'Annual Leave': 0,})
-  df['2012-11-01'] = df['Add'] + df['Add.1'] + df['Add.2'] + df['Add.3'] + df['Add.4'] + df['Add.5']
-  df['2013-01-01'] = df['Personal Leave'] + df['Annual Leave']
-  cols =[0,1,2, df.columns.tolist().index('2012-11-01'),df.columns.tolist().index('2013-01-01')]
+uploaded_files = st.file_uploader("Choose Files", accept_multiple_files = True)
 
-  df = df.iloc[:, cols]
-  df = df.dropna(subset=df.columns[:3], how='all')
-  df = df.melt(id_vars=['Employee ID', 'Store', 'Preferred Name'], value_vars=df.columns[3:], var_name='Date', value_name='Hours')
-  df = df[df['Hours'] != 0]
-  return df
+# Create an empty container
+output = st.empty()
 
-def extract_rostered_hr(file, sheet_name):
-  df = pd.read_excel(file, sheet_name = sheet_name)
+# if uploaded_files is not None:
+if len(uploaded_files) > 0:
+    ts, bl, ot, an, bo, up, gcm, hl, ss, msc, wld = calc_timesheets_n_billings(uploaded_files)
 
-  df = df.dropna(subset=['Employee ID'])
+    buffer = io.BytesIO()
 
-  if df['Employee ID'].dtypes == 'object':
-    df['Employee ID'] = df['Employee ID'].str[:6]
-  df['Employee ID'] = df['Employee ID'].astype(int)
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    # Write each dataframe to a different worksheet.
+        ts.to_excel(writer, sheet_name='Timesheet', index = False)
+        bl.to_excel(writer, sheet_name='Billing', index = False)
+        ot.to_excel(writer, sheet_name='Over Threshold', index = False)
+        an.to_excel(writer, sheet_name='Analysis',index = False)
+        bo.to_excel(writer, sheet_name='Bonus',index = False)
+        up.to_excel(writer, sheet_name='Upsheets',index = False)
+        gcm.to_excel(writer, sheet_name='Upsheets GCM',index = False)
+        hl.to_excel(writer, sheet_name='Upsheets HL',index = False)
+        ss.to_excel(writer, sheet_name='Upsheets SS',index = False)
+        msc.to_excel(writer, sheet_name='Upsheets MSC',index = False)
+        wld.to_excel(writer, sheet_name='Upsheets WLD',index = False)
 
-  if df['Store'].dtypes == float:
-    df['Store'] = df['Store'].astype(int).astype(str)
+    # Close the Pandas Excel writer and output the Excel file to the buffer
+    writer.close()
 
-  df = df.iloc[:, :24]
-  cols = [0,1,2]
-  for col in range(3, 24, 3):
-      df[df.columns[col]] = df[df.columns[col+2]]
-      cols.append(col)
-  df = df.iloc[:,cols]
-  df = df.dropna(subset=df.columns[:3], how='all')
-  df = df.melt(id_vars=['Employee ID', 'Store', 'Preferred Name'], value_vars=df.columns[3:], var_name='Date', value_name='Hours')
-  df = df[df['Hours'] != 0]
-  return df
-
-# Function to count digits before the decimal point in a float number
-def count_digits_before_decimal(number):
-  # Convert to string, split at the decimal point, and count digits in the integer part
-  integer_part = str(number).split('.')[0]
-  return len(integer_part.replace('-', '').replace('nan', ''))
-
-def calc_timesheets_n_billings(files):
-  print('calc')
-  timesheets = pd.DataFrame()
-  # billings = pd.DataFrame()
-  rostered_hr = pd.DataFrame()
-  additional_hr = pd.DataFrame()
-
-  for file in files:
-    timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
-    # billing = pd.read_excel(file, sheet_name = 'Billing')
-    rostered_hr_w1 = extract_rostered_hr(file, 'Week 1 Roster')
-    rostered_hr_w2 = extract_rostered_hr(file, 'Week 2 Roster')
-    additional_hr_w1 = extract_additional_hr(file, 'Week 1 Roster')
-    additional_hr_w2 = extract_additional_hr(file, 'Week 2 Roster')
-    employees = pd.read_excel(file, sheet_name = 'Employees')
-
-    timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
-    # billings = pd.concat([billings, billing], ignore_index=True)
-    rostered_hr = pd.concat([rostered_hr, rostered_hr_w1], ignore_index=True)
-    rostered_hr = pd.concat([rostered_hr, rostered_hr_w2], ignore_index=True)
-    additional_hr = pd.concat([additional_hr, additional_hr_w1], ignore_index=True)
-    additional_hr = pd.concat([additional_hr, additional_hr_w2], ignore_index=True)
-
-  roster_start_date = rostered_hr['Date'].min()
-  #Remove irrelevant rows
-  timesheets = timesheets.dropna(subset = ['Employee ID'])
-
-  #Keep the needed columns
-  timesheets_cols = [1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
-  timesheets = timesheets[timesheets.columns[timesheets_cols]]
-  timesheets['Update Wage'] = timesheets['Update Wage'].astype(bool)
-  #Column Aggregations
-  over_threshold_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
-  # timesheets = timesheets.groupby(['Employee ID', 'First Name','Last Name', 'Update Wage', 'Hour Threshold', 'Labour Hire', 'Store', 'Operator'], as_index = False).agg(timesheets_agg_cols)
-  over_threshold = timesheets.groupby(['Employee ID', 'First Name','Last Name', 'Update Wage', 'Hour Threshold'], as_index = False).agg(over_threshold_agg_cols)
-
-  #Calculate Over Threshold
-  over_threshold['Over Threshold'] = over_threshold['Total'] - over_threshold['Hour Threshold']
-  over_threshold.loc[over_threshold["Over Threshold"] <=0, "Over Threshold"] = 0
-
-  #Reduce Ord & Total with the excess
-  over_threshold['Ord OT Ratio'] = (over_threshold['Ord'] - over_threshold['Over Threshold']) / over_threshold['Ord']
-  # over_threshold['Ord'] = over_threshold['Ord'] - over_threshold['Over Threshold']
-  # over_threshold['Total'] = over_threshold['Total'] - over_threshold['Over Threshold']
-
-  time_sheets_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
-  timesheets = timesheets.groupby(['Employee ID', 'First Name','Last Name', 'Update Wage', 'Hour Threshold', 'Labour Hire', 'Store', 'Operator'], as_index = False).agg(time_sheets_agg_cols)
-
-  # Add Ord OT Ratio and Over Threshold columns from over_threshold dataframe
-  timesheets = pd.merge(timesheets, over_threshold[['Employee ID', 'Ord OT Ratio', 'Over Threshold']], on=['Employee ID'], how='left')
-  timesheets.fillna({'Ord OT Ratio': 1, 'Over Threshold': 0}, inplace=True)
-
-
-  # Apply Ord OT Ratio to Ord hours when Over Threshold > 0
-  timesheets.loc[timesheets['Over Threshold'] > 0, 'Ord'] = timesheets['Ord'] * timesheets['Ord OT Ratio']
-  timesheets.loc[timesheets['Over Threshold'] > 0, 'Total'] = timesheets['Total'] - timesheets['Over Threshold']
-
-  #Convert 80 & 100 hours to 76 hours
-  hours_col = ['Ord', 'Sat','Sun','Eve 1','Eve 2','Pub','Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Total']
-  if(100 in timesheets["Hour Threshold"].values):
-      timesheets.loc[timesheets["Hour Threshold"] == 100, hours_col] = timesheets[hours_col]/100*76
-  if(80 in timesheets["Hour Threshold"].values):
-      timesheets.loc[timesheets["Hour Threshold"] == 80, hours_col] = timesheets[hours_col]/80*76
-  if any(timesheets["Hour Threshold"] > 1000):
-  # Find rows where "Hour Threshold" is greater than 1000
-      rows_to_update = timesheets.loc[timesheets["Hour Threshold"] > 1000]
-      # Perform actions on the rows
-      for index, row in rows_to_update.iterrows():
-          threshold = int(row["Hour Threshold"])
-          base = int(str(threshold)[:2])
-          conversion = int(str(threshold)[-2:])
-          # Update multiple columns using .loc
-          timesheets.loc[index, hours_col] = timesheets.loc[index, hours_col] / conversion * base
-  
-  
-  #Keep Over Thresholds to a new df
-  over_threshold = over_threshold[over_threshold['Over Threshold']>0]
-  
-  #drop Hour Threshold & Over Threshold
-
-  timesheets = timesheets.drop(['Hour Threshold','Over Threshold', 'Ord OT Ratio'],axis = 1)
-
-  #Column Aggregations
-  billings_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
-  billings = timesheets.groupby(['Labour Hire', 'Store', 'Operator'], as_index = False).agg(billings_agg_cols)
-
-  rostered_hr = pd.merge(rostered_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
-  rostered_hr_col = [
-  'Employee ID',
-  'First Name',
-  'Last Name',
-  'Preferred Name',
-  'Company',
-  'Store',
-  'Date',
-  'Hours'
-  ]
-  rostered_hr = rostered_hr[rostered_hr_col]
-  rostered_hr['Date'] = pd.to_datetime(rostered_hr['Date']).dt.date
-
-  bonus = rostered_hr.copy()
-
-  # Stitch Store ID and drop rows which Store ID are not found
-  sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
-  sheet_name = 'StoreReference'
-  url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-  store_ref = pd.read_csv(url)
-
-  bonus = pd.merge(bonus, store_ref, on=['Store'], how = 'left')
-
-  bonus.dropna(subset=['Store ID'], inplace = True)
-
-  if bonus.shape[0] == 0:
-     print('No bonus to process')
-  
-  else:
-    store_crm_config = {
-      'sheet_id': '1aVcnah9Cp_PUvFiXgd2XRmBpLhumCqHUaqROaLcpYfc',
-      'sheet_name': 'store'
-    }
-    store_crm = read_csv_from_config(store_crm_config)
-    store_crm['opened_on'] = pd.to_datetime(store_crm['opened_on'])
-    store_crm['closed_on'] = pd.to_datetime(store_crm['closed_on'])
-    store_crm_col = ['store_id', 'recid_plo']
-    store_crm = store_crm[store_crm_col]
-    store_crm = store_crm[~store_crm['recid_plo'].isna()]
-    store_crm = store_crm.rename(columns={'store_id': 'Store ID'})
-    
-    bonus = pd.merge(bonus, store_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
-    bonus['recid_plo'] = bonus['recid_plo'].astype(int)
-
-    # Stich sales based on recid_plo & dates, skip if there is no Date
-    start = bonus['Date'].min()
-    end = bonus['Date'].max()
-
-    start_str = start.strftime('%Y-%m-%d')
-    end_str = end.strftime('%Y-%m-%d')
-
-    recid_plo_list = bonus['recid_plo'].unique().tolist()
-    recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
-
-    query = '''
-    SELECT *
-    FROM r_opsbonusexclusion
-    '''
-    exclusion_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
-    excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
-    excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
-
-    query = '''
-    SELECT recid_plo, itemdate as Date, sum(net_amount + gst_amount) as Sales
-    FROM d_txnlines
-    WHERE itemdate >='{start}' and itemdate <= '{end}' and recid_plo in ({recid_plo_list}) and recid_plu not in ({excluded_recid_plu})
-    GROUP BY recid_plo, itemdate
-    ORDER BY itemdate ASC, recid_plo ASC
-    '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
-    sales_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
-
-    sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
-
-    bonus = pd.merge(bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
-
-    # Stitch Target Sales & Bonus Rates
-    sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
-    sheet_name = 'Targets'
-    url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-    targets = pd.read_csv(url)
-    targets['Date'] = pd.to_datetime(targets['Date']).dt.date
-
-    # Change Bonus Rates to 0, if Target Sales is not met
-    bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
-    bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['Sales'] >= bonus['Target Sales'], 0)
-    bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
-
-  # Work out additional_hr
-  additional_hr = additional_hr.dropna(subset=['Employee ID'])
-  additional_hr = pd.merge(additional_hr, employees[['Employee ID', 'First Name', 'Last Name', 'Company']], how='left', on=['Employee ID'])
-  additional_hr_col = [
-  'Employee ID',
-  'First Name',
-  'Last Name',
-  'Preferred Name',
-  'Company',
-  'Store',
-  'Date',
-  'Hours'
-  ]
-  additional_hr = additional_hr[additional_hr_col]
-  additional_hr['Date'] = pd.to_datetime(additional_hr['Date'])
-
-  # Concat rostered_hr and additional_hr
-  analysis = pd.concat([rostered_hr, additional_hr])
-
-  # Concat Bouns on to Timesheets
-  if bonus.shape[0]==0:
-     print('No Bonus Summary to calculate')
-     timesheets['Bonus']=0
-  else:
-
-    bonus_summary = bonus.groupby(['Employee ID', 'Store'], as_index = False).agg({'Bonus':'sum'})
-    # print(bonus)
-    # print(bonus_summary)
-    timesheets['Store'] = timesheets['Store'].astype(str)
-    bonus_summary['Store'] = bonus_summary['Store'].astype(str)
-    timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID', 'Store'], how = 'left')
-
-    timesheets.fillna({'Bonus':0}, inplace = True)
-
-  upsheets = pd.melt(
-    timesheets, 
-    id_vars=['Employee ID', 'First Name', 'Last Name', 'Labour Hire'],  # Columns to keep
-    value_vars=['Ord', 'Sat', 'Sun', 'Pub', 'Eve 1', 'Eve 2', 'No. of Shifts', 'Personal Leave', 'Annual Leave', 'Unpaid Leave', 'Bonus'],  # Columns to unpivot
-    var_name='type',
-    value_name='hours'
-  )
-
-  lvl3_eid = employees[employees['Level'] == 'Level 3']['Employee ID']
-  upsheets['type'] = upsheets.apply(lambda row: 'Sun Lvl3' if row['Employee ID'] in lvl3_eid.values and row['type'] == 'Sun' else row['type'], axis=1)
-
-  type_replacement = {
-    'Ord': 'Ordinary Hours',
-    'Sat': 'Saturday',
-    'Sun': 'Sunday',
-    'Sun Lvl3': 'Sunday Level 3',
-    'Pub': 'Public Holiday Hours',
-    'Eve 1': 'Late Evening Hours 10pm to Midnight',
-    'Eve 2': 'Late Evening Hours Midnight - 6AM',
-    'No. of Shifts': 'Laundry Allowance',
-    'Personal Leave': "Personal/Carer's Leave",
-    'Annual Leave': 'Annual Leave',
-    'Unpaid Leave': 'Other Unpaid Leave',
-    'Bonus': 'Bonus',
-  }
-  upsheets['type'] = upsheets['type'].replace(type_replacement)
-  
-  upsheets = upsheets[upsheets['hours'] != 0]
-  upsheets['date']=roster_start_date
-  upsheets = upsheets.rename(columns={'First Name': 'first_name', 'Last Name':'last_name'})
-
-
-  upsheets['rate'] = ''
-  upsheets['calculation_type'] = ''
-
-  fixed_hours_calc_types = ["Personal/Carer's Leave", 'Annual Leave', 'Other Unpaid Leave']
-  upsheets.loc[upsheets['type'].isin(fixed_hours_calc_types), 'calculation_type'] = 'FIXEDHOURS'
-
-  fixed_amount_calc_types = ['Bonus']
-  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'calculation_type'] = 'FIXEDAMOUNT'
-  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'rate'] = upsheets['hours']
-  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'hours'] = ''
-
-  upsheets['digit'] = upsheets['Employee ID'].apply(count_digits_before_decimal)
-# Define a mapping of existing types to new types
-  casual_mapping = {
-      'Ordinary Hours': 'Casual Ordinary Hours',
-      'Saturday': 'Casual Saturday',
-      'Sunday': 'Casual Sunday',
-      'Public Holiday Hours': 'Casual Public Holiday Hours',
-      'Late Evening Hours 10pm to Midnight' : 'Casual Late Evening Hours 10pm to Midnight',
-      'Late Evening Hours Midnight - 6AM' : 'Casual Late Evening Hours Midnight - 6AM',
-  }
-# Use map with fillna to keep original values if no match in casual_mapping
-  upsheets.loc[upsheets['digit'] == 6, 'type'] = (
-      upsheets.loc[upsheets['digit'] == 6, 'type']
-      .map(casual_mapping)
-      .fillna(upsheets.loc[upsheets['digit'] == 6, 'type'])
-  )
-  GCM = upsheets[upsheets['Labour Hire']=='GCM']
-  HL = upsheets[upsheets['Labour Hire']=='HL']
-  SS = upsheets[upsheets['Labour Hire']=='SS']
-  MSC = upsheets[upsheets['Labour Hire']=='MSC']
-  WLD = upsheets[upsheets['Labour Hire']=='WLD']
-  upsheets_cols = ['Labour Hire','first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
-  upsheets = upsheets[upsheets_cols]
-
-  company_cols = ['first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
-  GCM = GCM[company_cols]
-  HL = HL[company_cols]
-  SS = SS[company_cols]
-  MSC = MSC[company_cols]
-  WLD = WLD[company_cols]
-
-  return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS, MSC, WLD
-
-
-
+    st.download_button(
+        label="Download",
+        data=buffer,
+        file_name="Timesheet & Billing.xlsx",
+        mime="application/vnd.ms-excel"
+    )
 # # # END OF FUNCTIONS
 
 import io
