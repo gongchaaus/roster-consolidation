@@ -84,6 +84,11 @@ def calc_timesheets_n_billings(files):
   timesheets_cols = [1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
   timesheets = timesheets[timesheets.columns[timesheets_cols]]
   timesheets['Update Wage'] = timesheets['Update Wage'].astype(bool)
+  timesheets['Store'] = timesheets['Store'].astype(str)
+  # If the original values were floats in say another column, you might first check that
+  mask = (timesheets['Store'] == '501.0')
+  timesheets.loc[mask, 'Store'] = '501'
+
   #Column Aggregations
   over_threshold_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}
   # timesheets = timesheets.groupby(['Employee ID', 'First Name','Last Name', 'Update Wage', 'Hour Threshold', 'Labour Hire', 'Store', 'Operator'], as_index = False).agg(timesheets_agg_cols)
@@ -254,7 +259,6 @@ def calc_timesheets_n_billings(files):
     bonus_summary = bonus.groupby(['Employee ID', 'Store'], as_index = False).agg({'Bonus':'sum'})
     # print(bonus)
     # print(bonus_summary)
-    timesheets['Store'] = timesheets['Store'].astype(int).astype(str)
     bonus_summary['Store'] = bonus_summary['Store'].astype(str)
     timesheets = pd.merge(timesheets, bonus_summary, on=['Employee ID', 'Store'], how = 'left')
 
@@ -335,6 +339,7 @@ def calc_timesheets_n_billings(files):
   WLD = WLD[company_cols]
 
   return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS, MSC, WLD
+
 
 # # # END OF FUNCTIONS
 
