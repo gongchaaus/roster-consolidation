@@ -139,6 +139,7 @@ def calc_timesheets_n_billings(files):
   #drop Hour Threshold & Over Threshold
 
   timesheets = timesheets.drop(['Hour Threshold','Over Threshold', 'Ord OT Ratio'],axis = 1)
+  timesheets['Total'] = timesheets['Ord'] + timesheets['Sat'] + timesheets['Sun'] + timesheets['Pub'] + timesheets['Eve 1'] + timesheets['Eve 2'] + timesheets['Personal Leave'] + timesheets['Annual Leave'] + timesheets['Unpaid Leave']
 
   #Column Aggregations
   billings_agg_cols = {'Ord':'sum','Sat':'sum','Sun':'sum','Pub':'sum','Eve 1':'sum','Eve 2':'sum','No. of Shifts':'sum','Personal Leave':'sum','Annual Leave':'sum','Unpaid Leave':'sum','Total':'sum'}

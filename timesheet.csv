@@ -1,0 +1,13 @@
+Employee ID,First Name,Last Name,Update Wage,Labour Hire,Store,Operator,Ord,Sat,Sun,Pub,Eve 1,Eve 2,No. of Shifts,Personal Leave,Annual Leave,Unpaid Leave,Total,Bonus
+10015.0,Haoxi,Lu,False,GCM,Ghost Festival,0.0,0.0,10.0,0.0,0,0.0,0,1,0,0,0,10.0,0
+10048.0,Xinqi,Liang,False,GCM,Ghost Festival,0.0,0.0,11.999999999999998,0.0,0,0.0,0,1,0,0,0,11.999999999999998,0
+10061.0,Adrian,Lim,False,HL,Ghost Festival,0.0,6.499999999999999,0.0,0.0,0,0.0,0,1,0,0,0,6.499999999999999,0
+10148.0,Yeng Ting,Luo,False,HL,Ghost Festival,0.0,6.499999999999999,0.0,0.0,0,0.0,0,1,0,0,0,6.499999999999999,0
+10252.0,Zhihou,Yang,False,HL,Ghost Festival,0.0,0.0,0.0,10.833333333333336,0,0.0,0,1,0,0,0,10.833333333333336,0
+10330.0,Winson,Tan,False,SS,Ghost Festival,0.0,6.5,0.0,0.0,0,1.5,0,1,0,0,0,8.0,0
+10337.0,Ngoc My,Nguyen,False,SS,Ghost Festival,0.0,0.0,8.5,7.5,0,0.0,0,2,0,0,0,16.0,0
+10388.0,Jordan,Tan,False,SS,Ghost Festival,0.0,0.0,0.0,10.833333333333336,0,0.0,0,1,0,0,0,10.833333333333336,0
+210396.0,Tsz Ching,Wong,False,SS,Ghost Festival,0.0,4.000000000000002,3.999999999999999,4.000000000000002,0,0.0,0,3,0,0,0,12.000000000000002,0
+210420.0,Yuxuan,Wang,False,SS,Ghost Festival,0.0,4.999999999999998,0.0,0.0,0,0.0,0,1,0,0,0,4.999999999999998,0
+210466.0,Kaden,Chu,False,MSC,Ghost Festival,0.0,3.999999999999999,0.0,0.0,0,0.0,0,1,0,0,0,3.999999999999999,0
+210513.0,Haji,Myrteza,False,Win,Ghost Festival,0.0,7.0,0.0,0.0,0,1.5,0,1,0,0,0,8.5,0
