@@ -328,7 +328,7 @@ def calc_timesheets_n_billings(files):
   HL = upsheets[upsheets['Labour Hire']=='HL']
   SS = upsheets[upsheets['Labour Hire']=='SS']
   MSC = upsheets[upsheets['Labour Hire']=='MSC']
-  WLD = upsheets[upsheets['Labour Hire']=='WLD']
+  WLD = upsheets[upsheets['Labour Hire']=='Win']
   upsheets_cols = ['Labour Hire','first_name', 'last_name', 'type', 'date','hours', 'rate', 'calculation_type']
   upsheets = upsheets[upsheets_cols]
 
