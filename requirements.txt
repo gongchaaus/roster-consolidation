@@ -8,3 +8,4 @@ pymysql
 clickhouse-connect
 SQLAlchemy
 psutil
+python-calamine
