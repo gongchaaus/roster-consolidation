@@ -3,7 +3,7 @@ clickhouse_client = gong_cha_redcat_db_clickhouse_client
 
 # # # START OF FUNCTIONS
 def extract_additional_hr(file, sheet_name):
-  df = pd.read_excel(file, sheet_name = sheet_name)
+  df = pd.read_excel(file, sheet_name = sheet_name, engine='calamine')
   df = df.dropna(subset=['Employee ID'])
 
   if df['Employee ID'].dtypes == 'object':
@@ -25,7 +25,7 @@ def extract_additional_hr(file, sheet_name):
   return df
 
 def extract_rostered_hr(file, sheet_name):
-  df = pd.read_excel(file, sheet_name = sheet_name)
+  df = pd.read_excel(file, sheet_name = sheet_name, engine='calamine')
 
   df = df.dropna(subset=['Employee ID'])
 
@@ -61,13 +61,13 @@ def calc_timesheets_n_billings(files):
   additional_hr = pd.DataFrame()
 
   for file in files:
-    timesheet = pd.read_excel(file, sheet_name = 'Timesheet')
-    # billing = pd.read_excel(file, sheet_name = 'Billing')
+    timesheet = pd.read_excel(file, sheet_name = 'Timesheet', engine='calamine')
+    # billing = pd.read_excel(file, sheet_name = 'Billing', engine='calamine')
     rostered_hr_w1 = extract_rostered_hr(file, 'Week 1 Roster')
     rostered_hr_w2 = extract_rostered_hr(file, 'Week 2 Roster')
     additional_hr_w1 = extract_additional_hr(file, 'Week 1 Roster')
     additional_hr_w2 = extract_additional_hr(file, 'Week 2 Roster')
-    employees = pd.read_excel(file, sheet_name = 'Employees')
+    employees = pd.read_excel(file, sheet_name = 'Employees', engine='calamine')
 
     timesheets = pd.concat([timesheets, timesheet], ignore_index=True)
     # billings = pd.concat([billings, billing], ignore_index=True)
@@ -340,7 +340,6 @@ def calc_timesheets_n_billings(files):
   WLD = WLD[company_cols]
 
   return timesheets, billings, over_threshold, analysis, bonus, upsheets, GCM, HL, SS, MSC, WLD
-
 
 # # # END OF FUNCTIONS
 
