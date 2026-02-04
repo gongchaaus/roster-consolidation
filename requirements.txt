@@ -9,3 +9,6 @@ clickhouse-connect
 SQLAlchemy
 psutil
 python-calamine
+numpy
+altair
+python-dateutil
