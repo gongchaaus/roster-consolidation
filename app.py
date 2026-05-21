@@ -173,7 +173,7 @@ def calc_timesheets_n_billings(files):
 
   if bonus.shape[0] == 0:
      print('No bonus to process')
-  
+
   else:
     store_crm_config = {
       'sheet_id': '1aVcnah9Cp_PUvFiXgd2XRmBpLhumCqHUaqROaLcpYfc',
@@ -186,52 +186,119 @@ def calc_timesheets_n_billings(files):
     store_crm = store_crm[store_crm_col]
     store_crm = store_crm[~store_crm['recid_plo'].isna()]
     store_crm = store_crm.rename(columns={'store_id': 'Store ID'})
-    
+
     bonus = pd.merge(bonus, store_crm[['Store ID', 'recid_plo']], on=['Store ID'], how = 'left')
-    bonus['recid_plo'] = bonus['recid_plo'].astype(int)
 
-    # Stich sales based on recid_plo & dates, skip if there is no Date
-    start = bonus['Date'].min()
-    end = bonus['Date'].max()
+    # Split into Gong Cha (Sxxx) and Hot Star (HSxxx)
+    hs_mask = bonus['Store ID'].str.startswith('HS', na=False)
+    hs_bonus = bonus[hs_mask].copy()
+    gc_bonus = bonus[~hs_mask].copy()
 
-    start_str = start.strftime('%Y-%m-%d')
-    end_str = end.strftime('%Y-%m-%d')
+    # ---- Gong Cha ----
+    if gc_bonus.shape[0] > 0:
+      gc_bonus['recid_plo'] = gc_bonus['recid_plo'].astype(int)
 
-    recid_plo_list = bonus['recid_plo'].unique().tolist()
-    recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
+      start = gc_bonus['Date'].min()
+      end = gc_bonus['Date'].max()
 
-    query = '''
-    SELECT *
-    FROM r_opsbonusexclusion
-    '''
-    exclusion_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
-    excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
-    excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
+      start_str = start.strftime('%Y-%m-%d')
+      end_str = end.strftime('%Y-%m-%d')
 
-    query = '''
-    SELECT recid_plo, itemdate as Date, sum(net_amount + gst_amount) as Sales
-    FROM d_txnlines
-    WHERE itemdate >='{start}' and itemdate <= '{end}' and recid_plo in ({recid_plo_list}) and recid_plu not in ({excluded_recid_plu})
-    GROUP BY recid_plo, itemdate
-    ORDER BY itemdate ASC, recid_plo ASC
-    '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
-    sales_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
+      recid_plo_list = gc_bonus['recid_plo'].unique().tolist()
+      recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
 
-    sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
+      query = '''
+      SELECT *
+      FROM r_opsbonusexclusion
+      '''
+      exclusion_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
+      excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
+      excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
 
-    bonus = pd.merge(bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
+      query = '''
+      SELECT recid_plo, itemdate as Date, sum(net_amount + gst_amount) as Sales
+      FROM d_txnlines
+      WHERE itemdate >='{start}' and itemdate <= '{end}' and recid_plo in ({recid_plo_list}) and recid_plu not in ({excluded_recid_plu})
+      GROUP BY recid_plo, itemdate
+      ORDER BY itemdate ASC, recid_plo ASC
+      '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
+      sales_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
 
-    # Stitch Target Sales & Bonus Rates
-    sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
-    sheet_name = 'Targets'
-    url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
-    targets = pd.read_csv(url)
-    targets['Date'] = pd.to_datetime(targets['Date']).dt.date
+      sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
 
-    # Change Bonus Rates to 0, if Target Sales is not met
-    bonus = pd.merge(bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
-    bonus['Bonus Rate'] = bonus['Bonus Rate'].where(bonus['Sales'] >= bonus['Target Sales'], 0)
-    bonus['Bonus'] = bonus['Bonus Rate']  * bonus['Hours']
+      gc_bonus = pd.merge(gc_bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
+
+      # Stitch Target Sales & Bonus Rates
+      sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
+      sheet_name = 'Targets'
+      url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
+      targets = pd.read_csv(url)
+      targets['Date'] = pd.to_datetime(targets['Date']).dt.date
+
+      # Change Bonus Rates to 0, if Target Sales is not met
+      gc_bonus = pd.merge(gc_bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how = 'left')
+      gc_bonus['Bonus Rate'] = gc_bonus['Bonus Rate'].where(gc_bonus['Sales'] >= gc_bonus['Target Sales'], 0)
+      gc_bonus['Bonus'] = gc_bonus['Bonus Rate']  * gc_bonus['Hours']
+
+    # ---- Hot Star ----
+    if hs_bonus.shape[0] > 0:
+      start = bonus['Date'].min()
+      end = bonus['Date'].max()
+      start_str = start.strftime('%Y-%m-%d')
+      end_str = end.strftime('%Y-%m-%d')
+
+      # Get productStoreId mapping from ClickHouse
+      r_stores = get_DataFrame_from_clickhouse('SELECT store_id, productStoreId FROM aupos_hotstaraus.r_stores', clickhouse_client)
+      r_stores = r_stores.dropna(subset=['productStoreId'])
+      hs_bonus = pd.merge(hs_bonus, r_stores, left_on='Store ID', right_on='store_id', how='left')
+
+      # POS sales from ClickHouse
+      hs_pos = hs_bonus[hs_bonus['productStoreId'].notna()].copy()
+      if hs_pos.shape[0] > 0:
+        psid_list = hs_pos['productStoreId'].unique().tolist()
+        psid_list_str = ', '.join(f"'{p}'" for p in psid_list)
+        query = f"""
+        SELECT productStoreId, toDate(orderDate) as Date, sum(total) as Sales
+        FROM aupos_hotstaraus.d_txnlines
+        WHERE toDate(orderDate) >= '{start_str}' AND toDate(orderDate) <= '{end_str}'
+          AND productStoreId IN ({psid_list_str})
+        GROUP BY productStoreId, toDate(orderDate)
+        """
+        hs_sales = get_DataFrame_from_clickhouse(query, clickhouse_client)
+        if hs_sales is not None and hs_sales.shape[0] > 0:
+          hs_sales['Date'] = pd.to_datetime(hs_sales['Date']).dt.date
+          hs_sales['productStoreId'] = hs_sales['productStoreId'].astype(str)
+          hs_bonus['productStoreId'] = hs_bonus['productStoreId'].astype(str)
+          hs_bonus = pd.merge(hs_bonus, hs_sales[['productStoreId', 'Date', 'Sales']], on=['productStoreId', 'Date'], how='left')
+        else:
+          hs_bonus['Sales'] = float('nan')
+      else:
+        hs_bonus['Sales'] = float('nan')
+
+      # Manual sales from storeSalesHS (combined with POS sales)
+      hs_manual_sales = pd.read_csv(f'https://docs.google.com/spreadsheets/d/1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM/gviz/tq?tqx=out:csv&sheet=storeSalesHS')
+      hs_manual_sales['date'] = pd.to_datetime(hs_manual_sales['date']).dt.date
+      hs_manual_sales = hs_manual_sales.rename(columns={'date': 'Date', 'store_id': 'Store ID', 'amount': 'Sales_manual'})
+      hs_bonus = pd.merge(hs_bonus, hs_manual_sales[['Store ID', 'Date', 'Sales_manual']], on=['Store ID', 'Date'], how='left')
+
+      # Combine both sources
+      hs_bonus['Sales'] = hs_bonus['Sales'].fillna(0) + hs_bonus['Sales_manual'].fillna(0)
+      hs_bonus.drop(columns=['Sales_manual'], inplace=True)
+
+      # Stitch Target Sales & Bonus Rates
+      sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
+      sheet_name = 'TargetHS'
+      url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
+      targets = pd.read_csv(url)
+      targets['Date'] = pd.to_datetime(targets['Date']).dt.date
+
+      hs_bonus = pd.merge(hs_bonus, targets[['Store ID', 'Date', 'Target Sales', 'Bonus Rate']], on=['Store ID', 'Date'], how='left')
+      hs_bonus['Bonus Rate'] = hs_bonus['Bonus Rate'].where(hs_bonus['Sales'] >= hs_bonus['Target Sales'], 0)
+      hs_bonus['Bonus'] = hs_bonus['Bonus Rate'] * hs_bonus['Hours']
+      hs_bonus.fillna({'Bonus': 0}, inplace=True)
+
+    # Recombine
+    bonus = pd.concat([gc_bonus, hs_bonus], ignore_index=True)
 
   # Work out additional_hr
   additional_hr = additional_hr.dropna(subset=['Employee ID'])
@@ -298,15 +365,17 @@ def calc_timesheets_n_billings(files):
 
 
   upsheets['rate'] = ''
+  upsheets['rate'] = upsheets['rate'].astype(object)
   upsheets['calculation_type'] = ''
 
   fixed_hours_calc_types = ["Personal/Carer's Leave", 'Annual Leave', 'Other Unpaid Leave']
   upsheets.loc[upsheets['type'].isin(fixed_hours_calc_types), 'calculation_type'] = 'FIXEDHOURS'
 
   fixed_amount_calc_types = ['Bonus']
-  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'calculation_type'] = 'FIXEDAMOUNT'
-  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'rate'] = upsheets['hours']
-  upsheets.loc[upsheets['type'].isin(fixed_amount_calc_types), 'hours'] = ''
+  bonus_mask = upsheets['type'].isin(fixed_amount_calc_types)
+  upsheets.loc[bonus_mask, 'calculation_type'] = 'FIXEDAMOUNT'
+  upsheets.loc[bonus_mask, 'rate'] = upsheets.loc[bonus_mask, 'hours'].astype(str)
+  upsheets.loc[bonus_mask, 'hours'] = 0
 
   upsheets['digit'] = upsheets['Employee ID'].apply(count_digits_before_decimal)
 # Define a mapping of existing types to new types
