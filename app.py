@@ -279,10 +279,11 @@ def calc_timesheets_n_billings(files):
       hs_manual_sales = pd.read_csv(f'https://docs.google.com/spreadsheets/d/1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM/gviz/tq?tqx=out:csv&sheet=storeSalesHS')
       hs_manual_sales['date'] = pd.to_datetime(hs_manual_sales['date']).dt.date
       hs_manual_sales = hs_manual_sales.rename(columns={'date': 'Date', 'store_id': 'Store ID', 'amount': 'Sales_manual'})
+      hs_manual_sales['Sales_manual'] = hs_manual_sales['Sales_manual'].replace(r'[\$,]', '', regex=True).astype(float)
       hs_bonus = pd.merge(hs_bonus, hs_manual_sales[['Store ID', 'Date', 'Sales_manual']], on=['Store ID', 'Date'], how='left')
 
       # Combine both sources
-      hs_bonus['Sales'] = hs_bonus['Sales'].astype(float).fillna(0) + hs_bonus['Sales_manual'].astype(float).fillna(0)
+      hs_bonus['Sales'] = hs_bonus['Sales'].astype(float).fillna(0) + hs_bonus['Sales_manual'].fillna(0)
       hs_bonus.drop(columns=['Sales_manual'], inplace=True)
 
       # Stitch Target Sales & Bonus Rates
