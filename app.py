@@ -282,7 +282,7 @@ def calc_timesheets_n_billings(files):
       hs_bonus = pd.merge(hs_bonus, hs_manual_sales[['Store ID', 'Date', 'Sales_manual']], on=['Store ID', 'Date'], how='left')
 
       # Combine both sources
-      hs_bonus['Sales'] = hs_bonus['Sales'].astype(float).fillna(0) + hs_bonus['Sales_manual'].fillna(0)
+      hs_bonus['Sales'] = hs_bonus['Sales'].astype(float).fillna(0) + hs_bonus['Sales_manual'].astype(float).fillna(0)
       hs_bonus.drop(columns=['Sales_manual'], inplace=True)
 
       # Stitch Target Sales & Bonus Rates
