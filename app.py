@@ -204,29 +204,33 @@ def calc_timesheets_n_billings(files):
       start_str = start.strftime('%Y-%m-%d')
       end_str = end.strftime('%Y-%m-%d')
 
-      recid_plo_list = gc_bonus['recid_plo'].unique().tolist()
-      recid_plo_list_str = ', '.join(str(id) for id in recid_plo_list)
+      store_id_list = gc_bonus['Store ID'].unique().tolist()
+      store_id_list_str = ', '.join(f"'{s}'" for s in store_id_list)
 
-      query = '''
-      SELECT *
-      FROM r_opsbonusexclusion
-      '''
-      exclusion_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
-      excluded_recid_plu = exclusion_df['recid_plu'].drop_duplicates()
-      excluded_recid_plu_str = ', '.join(str(s) for s in excluded_recid_plu)
+      excluded_query = f"""
+      SELECT DISTINCT unified_code
+      FROM analytics_gongchaaus.ops_bonus_exclusion
+      """
+      excluded_df = get_DataFrame_from_clickhouse(excluded_query, clickhouse_client)
+      excluded_unified_codes = excluded_df['unified_code'].dropna().unique().tolist()
+      excluded_unified_codes = [c for c in excluded_unified_codes if c]
+      excluded_str = ', '.join(f"'{c}'" for c in excluded_unified_codes) if excluded_unified_codes else "'__none__'"
 
-      query = '''
-      SELECT recid_plo, itemdate as Date, sum(net_amount + gst_amount) as Sales
-      FROM d_txnlines
-      WHERE itemdate >='{start}' and itemdate <= '{end}' and recid_plo in ({recid_plo_list}) and recid_plu not in ({excluded_recid_plu})
-      GROUP BY recid_plo, itemdate
-      ORDER BY itemdate ASC, recid_plo ASC
-      '''.format(start=start_str, end = end_str, recid_plo_list = recid_plo_list_str, excluded_recid_plu = excluded_recid_plu_str)
+      query = f"""
+      SELECT store_id, transaction_date as Date, sum(net_amount) as Sales
+      FROM analytics_gongchaaus.txn_lines
+      WHERE transaction_date >= '{start_str}' AND transaction_date <= '{end_str}'
+        AND store_id IN ({store_id_list_str})
+        AND (unified_code IS NULL OR unified_code NOT IN ({excluded_str}))
+      GROUP BY store_id, transaction_date
+      ORDER BY transaction_date ASC, store_id ASC
+      """
       sales_df = get_DataFrame_from_clickhouse(query, clickhouse_client)
 
       sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
 
-      gc_bonus = pd.merge(gc_bonus, sales_df[['recid_plo', 'Date', 'Sales']], on=['recid_plo', 'Date'], how = 'left')
+      gc_bonus = pd.merge(gc_bonus, sales_df[['store_id', 'Date', 'Sales']], left_on='Store ID', right_on='store_id', how='left')
+      gc_bonus.drop(columns=['store_id'], inplace=True)
 
       # Stitch Target Sales & Bonus Rates
       sheet_id = '1rqOeBjA9drmTnjlENvr57RqL5-oxSqe_KGdbdL2MKhM'
