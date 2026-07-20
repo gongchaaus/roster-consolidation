@@ -5,6 +5,10 @@
 - `gc_bonus` pulls `sum(net_amount)` from `analytics_gongchaaus.txn_lines` (all sources, no `source = 'redcat'` filter)
 - Exclusions read dynamically from `analytics_gongchaaus.ops_bonus_exclusion` (same format as `product_mapping`) — no hardcoded list
 - Targets sheet is in net sales units; `Bonus Rate` applies when `Sales >= Target Sales`
+- Sales merge uses `Date` as a merge key alongside `Store ID`/`store_id` (per-day match). Earlier code merged only on store, producing `Date_x`/`Date_y` and breaking the subsequent targets merge with `KeyError: 'Date'` (fixed).
+- `net_amount` differs from portal "Total Ex GST" by a few cents per store because the portal rounds each order's `(gross − gst)` to 2 dp, while `SUM(net_amount)` sums line-level `net_amount` at full precision. Use `sum(round(sum(gross_amount) - sum(gst_amount), 2))` grouped per `(store_id, transaction_date, order_id)` to match portal exactly.
+- `points-redeem` (Points Redemption, negative `net_amount`) is **included** — it reduces the sales figure used for bonus. `sys-points-01` (Points Claimed) is a separate code; neither is in `ops_bonus_exclusion`.
+- `sur-card` (Card Surcharge) is **not** in `ops_bonus_exclusion`, so card surcharge is currently included in bonus-eligible sales. The stale `surcharge-01` entry in the exclusion list has no data.
 
 ## Hot Star Sales Integration
 
