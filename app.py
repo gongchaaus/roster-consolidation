@@ -229,7 +229,7 @@ def calc_timesheets_n_billings(files):
 
       sales_df['Date'] = pd.to_datetime(sales_df['Date']).dt.date
 
-      gc_bonus = pd.merge(gc_bonus, sales_df[['store_id', 'Date', 'Sales']], left_on='Store ID', right_on='store_id', how='left')
+      gc_bonus = pd.merge(gc_bonus, sales_df[['store_id', 'Date', 'Sales']], left_on=['Store ID', 'Date'], right_on=['store_id', 'Date'], how='left')
       gc_bonus.drop(columns=['store_id'], inplace=True)
 
       # Stitch Target Sales & Bonus Rates
