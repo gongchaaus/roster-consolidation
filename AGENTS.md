@@ -1,10 +1,16 @@
 # Agent Memory
 
+## Gong Cha Bonus — Sales Source
+
+- `gc_bonus` pulls `sum(net_amount)` from `analytics_gongchaaus.txn_lines` (all sources, no `source = 'redcat'` filter)
+- Exclusions read dynamically from `analytics_gongchaaus.ops_bonus_exclusion` (same format as `product_mapping`) — no hardcoded list
+- Targets sheet is in net sales units; `Bonus Rate` applies when `Sales >= Target Sales`
+
 ## Hot Star Sales Integration
 
 ### Architecture
 - `app.py` `calc_timesheets_n_billings()` splits bonus into **Gong Cha** (`Sxxx` Store ID) and **Hot Star** (`HSxxx` Store ID) after StoreReference merge
-- `gc_bonus` uses existing `recid_plo` → `gong_cha_redcat_db.d_txnlines` flow (unchanged)
+- `gc_bonus` uses `store_id` → `analytics_gongchaaus.txn_lines` (unified RedCat + ZiiCloud)
 - `hs_bonus` uses `productStoreId` → `aupos_hotstaraus.d_txnlines` flow (new)
 
 ### Hot Star Data Sources
